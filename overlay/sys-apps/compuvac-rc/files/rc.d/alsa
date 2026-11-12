@@ -1,0 +1,7 @@
+#!/bin/bash
+# sound: restore and save mixer levels
+. /etc/rc.d/functions
+case "$1" in
+  start) say "AUDIO CHANNELS" sh -c 'alsactl restore 2>/dev/null || alsactl init; true' ;;
+  stop)  say "AUDIO CHANNELS" alsactl store ;;
+esac

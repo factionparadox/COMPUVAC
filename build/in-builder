@@ -1,0 +1,17 @@
+#!/bin/sh
+# Run a command inside the Compuvac builder with the overlay mounted.
+# Usage: build/in-builder SCRIPT   (SCRIPT path relative to the repo)
+set -e
+cd "$(dirname "$0")/.."
+envs=
+for v in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY; do
+	eval "val=\${$v:-}"; [ -n "$val" ] && envs="$envs -e $v"
+done
+mkdir -p .build/out .build/binpkgs .build/distfiles
+exec podman run --rm --network host $envs \
+	-v "$PWD/overlay:/var/db/repos/compuvac:Z" \
+	-v "$PWD:/src:Z" \
+	-v "$PWD/.build/out:/out:Z" \
+	-v "$PWD/.build/binpkgs:/var/cache/binpkgs:Z" \
+	-v "$PWD/.build/distfiles:/var/cache/distfiles:Z" \
+	compuvac-builder sh "/src/$1"

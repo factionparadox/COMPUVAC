@@ -1,0 +1,30 @@
+#!/bin/bash
+# Compuvac system start: everything that must happen once, before services.
+. /etc/rc.d/functions
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+banner "COMPUVAC  ·  SPACE SECURITY SERVICE MASTER COMPUTER"
+printf '%s%s%s\n\n' "$DIM" "ELECTRONIC BRAIN WARMING ..." "$OFF"
+
+say "KERNEL INTERFACES" sh -c '
+  mountpoint -q /proc || mount -t proc proc /proc
+  mountpoint -q /sys  || mount -t sysfs sys /sys
+  mountpoint -q /run  || mount -t tmpfs -o mode=0755,nosuid,nodev run /run
+  mountpoint -q /dev  || mount -t devtmpfs -o mode=0755,nosuid dev /dev
+  mkdir -p /dev/pts /dev/shm /run/lock
+  mountpoint -q /dev/pts || mount -t devpts -o mode=0620,gid=5,nosuid,noexec devpts /dev/pts
+  mountpoint -q /dev/shm || mount -t tmpfs -o mode=1777,nosuid,nodev shm /dev/shm'
+
+udevd=$(command -v udevd || ls /usr/lib/systemd/systemd-udevd /lib/systemd/systemd-udevd 2>/dev/null | head -1)
+say "DEVICE REGISTRY" sh -c "$udevd --daemon && udevadm trigger --action=add --type=subsystems &&
+  udevadm trigger --action=add --type=devices && udevadm settle --timeout=30"
+
+say "CORE STORE INTEGRITY" sh -c 'fsck -A -T -C -a -t noopts=_netdev; [ $? -le 1 ]'
+say "CORE STORE" sh -c 'mount -o remount,rw / && mount -a -t nonfs,nocifs && swapon -a'
+
+say "OPERATOR CONSOLE" sh -c "loadkeys -q ${KEYMAP:-uk}; [ -z \"$FONT\" ] || setfont \"$FONT\"; true"
+say "CHRONOMETER" hwclock --hctosys --utc
+say "DESIGNATION ${HOSTNAME^^}" hostname "$HOSTNAME"
+say "LOOPBACK" ip link set lo up
+say "ENTROPY" sh -c '[ ! -f /var/lib/misc/random-seed ] || cat /var/lib/misc/random-seed > /dev/urandom'
+say "KERNEL PARAMETERS" sh -c 'sysctl -q --system || true'
+: > /run/utmp; rm -f /run/nologin /etc/nologin /tmp/.X*-lock

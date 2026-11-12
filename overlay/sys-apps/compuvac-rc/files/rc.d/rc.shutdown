@@ -1,0 +1,15 @@
+#!/bin/bash
+# Compuvac shutdown: services stopped in reverse, the clock and seed saved, disks released.
+. /etc/rc.d/functions
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+banner "COMPUVAC  ·  SHUTDOWN SEQUENCE"
+for (( i=${#SERVICES[@]}-1; i>=0; i-- )); do
+  s=${SERVICES[$i]}; [ -x "/etc/rc.d/$s" ] && /etc/rc.d/"$s" stop
+done
+say "CHRONOMETER" hwclock --systohc --utc
+say "ENTROPY" sh -c 'mkdir -p /var/lib/misc && dd if=/dev/urandom of=/var/lib/misc/random-seed count=1 bs=512'
+say "PROCESSES" sh -c 'killall5 -15; sleep 2; killall5 -9; true'
+say "SWAP" swapoff -a
+say "CORE STORE" sh -c 'umount -a -r -t notmpfs,nosysfs,nodevtmpfs,noproc,nodevpts; mount -o remount,ro /'
+banner "IT IS NOW SAFE TO SWITCH OFF THE COMPUTER."
+case "$1" in reboot) reboot -f ;; *) halt -f -p ;; esac

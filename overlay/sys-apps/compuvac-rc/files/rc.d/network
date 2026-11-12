@@ -1,0 +1,7 @@
+#!/bin/bash
+# networking: dhcpcd on every interface (wired, and Wi-Fi through wpa_supplicant's hook)
+. /etc/rc.d/functions
+case "$1" in
+  start) say "EXTERNAL LINK" sh -c 'dhcpcd -b -q' ;;
+  stop)  say "EXTERNAL LINK" sh -c 'dhcpcd -x; true' ;;
+esac

@@ -1,0 +1,21 @@
+#!/bin/bash
+# Program selector. One program at a time; quitting returns to the console.
+list=/usr/share/compuvac/programs
+local_list=/etc/compuvac/programs
+pick=$( { cat "$list" "$local_list" 2>/dev/null; } | grep -v '^#' | grep . |
+	awk -F'|' '{printf "%-14s %s\t%s\n", toupper($1), $3, $2}' |
+	fzf --reverse --no-info --prompt='SELECT PROGRAM > ' --pointer='>' \
+		--delimiter='\t' --with-nth=1 --print-query \
+		--color='bw' --border=sharp --border-label=' PROGRAM INDEX ' )
+query=$(sed -n 1p <<<"$pick")
+cmd=$(sed -n 2p <<<"$pick" | cut -f2)
+[ -z "$cmd" ] && cmd=$query          # typed something not on the list
+[ -z "$cmd" ] && exit 0
+if ! command -v "${cmd%% *}" >/dev/null; then
+	compuvac-sound fault
+	printf '\n  PROGRAM %s NOT HELD IN CORE STORE.\n' "${cmd^^}"; sleep 2; exit 1
+fi
+compuvac-sound launch
+clear
+eval "$cmd"
+compuvac-sound return

@@ -1,0 +1,9 @@
+#!/bin/sh
+# Ly starts this. One program owns the screen: the terminal.
+export XDG_SESSION_TYPE=wayland
+export QT_QPA_PLATFORM=wayland
+export MC_SKIN=compuvac
+export COMPUVAC=1
+compuvac-sound boot &
+exec cage -s -- cool-retro-term --fullscreen --profile "Monochrome Green" \
+	--program /usr/bin/compuvac-console

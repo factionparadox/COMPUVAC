@@ -1,0 +1,7 @@
+#!/bin/bash
+# Compuvac services: started in the order rc.conf lists them.
+. /etc/rc.d/functions
+for s in "${SERVICES[@]}"; do
+  [ -x "/etc/rc.d/$s" ] && /etc/rc.d/"$s" start
+done
+banner "COMPUVAC READY.  AWAITING OPERATOR IDENTIFICATION."

@@ -1,0 +1,2 @@
+# Zig comes prebuilt (dev-lang/zig-bin): building it means building LLVM
+dev-lang/zig

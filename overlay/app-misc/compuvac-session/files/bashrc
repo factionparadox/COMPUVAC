@@ -1,0 +1,26 @@
+# Compuvac operator console
+[ -f /etc/bash/bashrc ] && . /etc/bash/bashrc
+export EDITOR=mcedit VISUAL=mcedit PAGER=less MC_SKIN=compuvac
+
+compuvac_banner() {
+	clear
+	printf '\n  COMPUVAC  ·  SPACE SECURITY SERVICE MASTER COMPUTER\n'
+	printf '  ─────────────────────────────────────────────────\n'
+	printf '  OPERATOR  %s        TERMINAL  %s\n' "${USER^^}" "$(tty | sed 's#/dev/##')"
+	printf '  CORE      %s\n\n' "$(uname -r)"
+	printf '  CTRL+SPACE  PROGRAMS      F2  FILES      F10  HELP\n\n'
+}
+
+compuvac_run_widget() { compuvac-run; READLINE_LINE=; compuvac_banner; }
+bind -x '"\C-@": compuvac_run_widget'
+bind -x '"\eOQ": mc; compuvac_banner'
+bind -x '"\e[21~": compuvac-help'
+
+help()   { compuvac-help; }
+files()  { mc; }
+logout() { compuvac-sound off; builtin exit; }
+
+PS1='\[\e[1m\]COMPUVAC\[\e[0m\] \w > '
+trap 'compuvac-sound fault' ERR
+compuvac_banner
+compuvac-sound ready

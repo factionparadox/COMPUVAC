@@ -1,0 +1,7 @@
+#!/bin/bash
+# the system log (busybox syslogd if present, else sysklogd)
+. /etc/rc.d/functions
+case "$1" in
+  start) say "LOG TELETYPE" sh -c 'if command -v syslogd >/dev/null; then syslogd; fi; true' ;;
+  stop)  say "LOG TELETYPE" sh -c 'pkill -x syslogd; true' ;;
+esac

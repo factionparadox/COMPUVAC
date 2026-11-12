@@ -1,0 +1,21 @@
+#!/bin/sh
+# Synthesised at build time with sox. Nothing sampled.
+set -e
+o=${1:?out dir}; mkdir -p "$o"
+# Data chatter: short square blips at random-ish pitches, like a teletype thinking.
+chatter() {
+	name=$1 n=$2; parts=
+	i=0; for p in 1760 2093 1568 2349 1975 2637 1397 2217 1661 2489 1865 2794; do
+		[ $i -ge $n ] && break
+		sox -q -n -r 22050 -c 1 -b 16 "$o/.p$i.wav" synth 0.035 square $p vol 0.25 pad 0 0.015
+		parts="$parts $o/.p$i.wav"; i=$((i+1))
+	done
+	sox -q $parts "$o/$name.wav"; rm -f "$o"/.p*.wav
+}
+sox -q -n -r 22050 -c 1 -b 16 "$o/boot.wav"   synth 0.12 sine 440 sine 660 sine 880 : synth 0.4 sine 1320 fade 0 0.4 0.3 vol 0.4
+chatter ready 6
+chatter launch 4
+sox -q -n -r 22050 -c 1 -b 16 "$o/return.wav" synth 0.06 square 1320 vol 0.2 : synth 0.06 square 880 vol 0.2
+sox -q -n -r 22050 -c 1 -b 16 "$o/fault.wav"  synth 0.5 square 110 square 117 vol 0.3 fade 0 0.5 0.1
+sox -q -n -r 22050 -c 1 -b 16 "$o/off.wav"    synth 0.8 sine 880-110 vol 0.35 fade 0 0.8 0.4
+chatter key 1

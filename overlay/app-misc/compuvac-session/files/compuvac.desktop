@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Compuvac
+Comment=Operator console
+Exec=/usr/bin/compuvac-session
+Type=Application
+DesktopNames=Compuvac

@@ -1,0 +1,7 @@
+# from GURU and our own packages, which are only marked testing
+gui-wm/cage ~amd64
+x11-misc/ly ~amd64
+x11-terms/cool-retro-term ~amd64
+dev-lang/zig ~amd64
+dev-lang/zig-bin ~amd64
+app-misc/brightnessctl ~amd64

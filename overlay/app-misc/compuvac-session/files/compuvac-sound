@@ -1,0 +1,5 @@
+#!/bin/sh
+# Play one of Compuvac's tones. Silent if there's no sound card.
+f=/usr/share/compuvac/sounds/$1.wav
+[ -r "$f" ] && [ -z "$COMPUVAC_QUIET" ] && aplay -q "$f" >/dev/null 2>&1 &
+exit 0

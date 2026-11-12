@@ -1,0 +1,21 @@
+#!/bin/sh
+less -R <<'TXT'
+
+  COMPUVAC OPERATOR MANUAL
+  ────────────────────────
+
+  CTRL+SPACE     Program index. Type a name, press RETURN.
+                 The program takes the whole screen. Quit it to return.
+  F2             File store (Midnight Commander). F4 edits a file.
+  F10            This manual.
+
+  compuvac install NAME     Requisition software.
+  compuvac remove NAME      Decommission software.
+  compuvac update           Bring the core store up to date.
+  compuvac search WORDS     Search the archive.
+
+  CTRL+ALT+F2    Maintenance terminal.
+  logout         End the session.
+
+  Q to close this manual.
+TXT

@@ -1,0 +1,5 @@
+# seatd runs as the seat arbiter (no elogind)
+sys-auth/seatd server
+# Wayland only: one program on screen through cage, no X server
+x11-misc/ly -X
+gui-wm/cage -X

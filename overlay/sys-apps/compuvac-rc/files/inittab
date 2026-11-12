@@ -1,0 +1,13 @@
+# Compuvac /etc/inittab: sysvinit hands everything to plain rc scripts.
+id:3:initdefault:
+
+si::sysinit:/etc/rc.d/rc.sysinit
+rc:2345:wait:/etc/rc.d/rc.multi
+l0:0:wait:/etc/rc.d/rc.shutdown halt
+l6:6:wait:/etc/rc.d/rc.shutdown reboot
+
+# tty1 is Compuvac's login screen (Ly, started by rc.multi); the others are plain consoles
+c2:2345:respawn:/sbin/agetty --noclear 38400 tty2 linux
+c3:2345:respawn:/sbin/agetty --noclear 38400 tty3 linux
+
+ca::ctrlaltdel:/sbin/shutdown -r now

@@ -1,0 +1,116 @@
+#!/bin/bash
+# compuvac — software requisition. Speaks for Portage.
+set -o pipefail
+G=$'\e[32m' B=$'\e[1;32m' D=$'\e[2;32m' N=$'\e[0m'
+say()   { printf '%s%s%s\n' "$B" "$*" "$N"; }
+note()  { printf '%s%s%s\n' "$D" "$*" "$N"; }
+fault() { compuvac-sound fault; printf '%sFAULT: %s%s\n' "$B" "$*" "$N" >&2; exit 1; }
+EMERGE=(emerge --getbinpkg --usepkg --binpkg-respect-use=y --binpkg-changed-deps=n)
+USEDIR=/etc/portage/package.use
+
+need_root() {
+	[ "$EUID" = 0 ] && return
+	note "OPERATOR CLEARANCE REQUIRED."
+	if command -v doas >/dev/null; then exec doas "$0" "$@"; fi
+	exec su -c "$(printf '%q ' "$0" "$@")"
+}
+
+resolve() {  # name -> cat/pkg
+	local atom
+	atom=$(equery -q list -p -F '$category/$name' "$1" 2>/dev/null | sort -u)
+	[ -z "$atom" ] && atom=$(equery -q list -p -F '$category/$name' "*/$1" 2>/dev/null | sort -u)
+	case $(grep -c . <<<"$atom") in
+		0) fault "NO RECORD OF '${1^^}' IN THE ARCHIVE." ;;
+		1) echo "$atom" ;;
+		*) say "'${1^^}' IS AMBIGUOUS. SPECIFY:" >&2; sed 's/^/   /' <<<"$atom" >&2; exit 1 ;;
+	esac
+}
+
+interrogate() {  # ask about each USE flag of $1, write package.use
+	local atom=$1 file="$USEDIR/compuvac-${1//\//_}" flags=() line flag def desc ans
+	mapfile -t lines < <(equery -N -C uses "$atom" 2>/dev/null | grep -E '^ *[-+] [-+] ')
+	if [ ${#lines[@]} -eq 0 ]; then note "NO OPTIONAL FUNCTIONS. PROCEEDING."; return; fi
+	say "${atom^^}: ${#lines[@]} OPTIONAL FUNCTIONS."
+	note "ANSWER Y OR N. RETURN ACCEPTS THE RECOMMENDATION SHOWN IN CAPITALS."
+	echo
+	for line in "${lines[@]}"; do
+		def=$(awk '{print $2}' <<<"$line")
+		flag=$(awk '{print $3}' <<<"$line")
+		desc=$(sed 's/^[^:]*: *//' <<<"$line")
+		[ "$def" = + ] && hint="Y/n" || hint="y/N"
+		printf '%s%-22s%s %s\n' "$B" "${flag^^}" "$N" "${G}${desc}${N}"
+		read -rp "${D}   ENABLE? [$hint] ${N}" ans </dev/tty
+		case ${ans,,} in
+			y*) flags+=("$flag") ;;
+			n*) flags+=("-$flag") ;;
+			*)  [ "$def" = + ] && flags+=("$flag") || flags+=("-$flag") ;;
+		esac
+	done
+	mkdir -p "$USEDIR"
+	printf '# Written by compuvac. Change with: compuvac reconsider %s\n%s %s\n' \
+		"$atom" "$atom" "${flags[*]}" > "$file"
+	echo; note "RECORDED IN ${file}."
+}
+
+case $1 in
+install|requisition)
+	shift; [ $# -ge 1 ] || fault "SPECIFY SOFTWARE."
+	need_root install "$@"
+	quick=; [ "$1" = -q ] && { quick=1; shift; }
+	for name; do
+		atom=$(resolve "$name") || exit 1
+		say "REQUISITION: ${atom^^}"
+		[ -z "$quick" ] && [ ! -f "$USEDIR/compuvac-${atom//\//_}" ] && interrogate "$atom"
+		compuvac-sound launch
+		"${EMERGE[@]}" --noreplace "$atom" || fault "REQUISITION OF ${atom^^} FAILED."
+		say "${atom^^} IS HELD IN CORE STORE."
+	done
+	compuvac-sound return ;;
+reconsider)
+	shift; need_root reconsider "$@"
+	atom=$(resolve "$1") || exit 1
+	rm -f "$USEDIR/compuvac-${atom//\//_}"
+	interrogate "$atom"
+	"${EMERGE[@]}" --oneshot "$atom" || fault "REBUILD FAILED." ;;
+remove|decommission)
+	shift; need_root remove "$@"
+	for name; do
+		atom=$(resolve "$name") || exit 1
+		say "DECOMMISSION: ${atom^^}"
+		emerge --deselect "$atom" && emerge --depclean --ask=n "$atom" || fault "COULD NOT DECOMMISSION ${atom^^}."
+		rm -f "$USEDIR/compuvac-${atom//\//_}"
+	done
+	say "DECOMMISSIONED." ;;
+update)
+	need_root update
+	say "SYNCHRONISING ARCHIVE."
+	emaint sync -a || fault "ARCHIVE UNREACHABLE."
+	say "BRINGING CORE STORE UP TO DATE."
+	"${EMERGE[@]}" --update --deep --newuse @world || fault "UPDATE INCOMPLETE."
+	emerge --depclean --ask=n
+	say "CORE STORE CURRENT." ;;
+search)
+	shift; [ $# -ge 1 ] || fault "SPECIFY SEARCH TERMS."
+	say "SEARCHING ARCHIVE FOR: ${*^^}"
+	emerge --search --searchdesc "$*" | grep -E '^\*|Description' |
+		sed -E 's/^\*  /\n/; s/^ +Description: +/   /' ;;
+status)
+	say "COMPUVAC STATUS"
+	printf '%s   PROGRAMS HELD   %s\n' "$G" "$(ls -d /var/db/pkg/*/* | wc -l)"
+	printf '   CHOSEN          %s\n' "$(grep -c . /var/lib/portage/world)"
+	printf '   ARCHIVE DATE    %s\n' "$(cat /var/db/repos/gentoo/metadata/timestamp.chk 2>/dev/null || echo UNKNOWN)"
+	printf '   CORE STORE      %s free%s\n' "$(df -h / | awk 'NR==2{print $4}')" "$N" ;;
+""|help|-h|--help)
+	cat <<TXT
+${B}COMPUVAC SOFTWARE REQUISITION${N}
+${G}  compuvac install NAME...     requisition software (asks about each function)
+  compuvac install -q NAME...  requisition with recommended functions
+  compuvac reconsider NAME     answer the questions again and rebuild
+  compuvac remove NAME...      decommission software
+  compuvac update              bring everything up to date
+  compuvac search WORDS        search the archive
+  compuvac status              report on the core store${N}
+TXT
+	;;
+*) fault "UNKNOWN DIRECTIVE '${1^^}'. TRY: compuvac help" ;;
+esac

@@ -1,0 +1,7 @@
+#!/bin/bash
+# seatd: gives the login screen and cage the screen and keyboard, with no session daemon
+. /etc/rc.d/functions
+case "$1" in
+  start) say "SEAT ARBITER" sh -c 'seatd -g video >/dev/null 2>&1 & sleep 0.3' ;;
+  stop)  say "SEAT ARBITER" pkill -x seatd ;;
+esac

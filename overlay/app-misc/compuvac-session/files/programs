@@ -1,0 +1,9 @@
+# name|command|description   (add your own in /etc/compuvac/programs)
+files|mc|FILE STORE AND EDITOR
+edit|mcedit|TEXT EDITOR
+system|htop|PROCESS MONITOR
+mixer|alsamixer|AUDIO CHANNELS
+network|ip -c addr; read -rsn1|NETWORK STATUS
+manual|compuvac-help|OPERATOR MANUAL
+install|compuvac|SOFTWARE REQUISITION
+shell|bash -l|RAW SHELL

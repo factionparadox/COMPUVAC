@@ -1,0 +1,11 @@
+# The system Compuvac is built in: Gentoo's stage3 with the current package tree,
+# using Gentoo's binary package host so most of Compuvac arrives prebuilt.
+FROM docker.io/gentoo/portage:latest AS tree
+FROM docker.io/gentoo/stage3:latest
+COPY --from=tree /var/db/repos/gentoo /var/db/repos/gentoo
+# a TLS-inspecting proxy's CA, if the build host has one (ca/ is empty otherwise)
+COPY ca/ /usr/local/share/ca-certificates/
+RUN update-ca-certificates >/dev/null 2>&1 || true
+RUN printf '%s\n' 'FEATURES="${FEATURES} getbinpkg binpkg-request-signature -ipc-sandbox -network-sandbox -pid-sandbox"' \
+      'MAKEOPTS="-j2"' 'ACCEPT_LICENSE="*"' >> /etc/portage/make.conf && \
+    getuto >/dev/null 2>&1 || true

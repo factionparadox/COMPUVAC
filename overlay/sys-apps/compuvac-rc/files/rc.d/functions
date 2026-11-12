@@ -1,0 +1,14 @@
+# Shared by Compuvac's rc scripts: Compuvac reports each step like an old mainframe.
+GREEN=$'\e[1;32m' DIM=$'\e[0;32m' RED=$'\e[1;31m' OFF=$'\e[0m'
+WIDTH=46
+
+# say "CORE STORE" command args...   ->   CORE STORE .................... OK / FAULT
+say() {
+  local label=$1; shift
+  local dots; dots=$(printf '%*s' $((WIDTH - ${#label})) '' | tr ' ' '.')
+  printf '%s%s %s%s ' "$GREEN" "$label" "$DIM" "$dots"
+  if "$@" >/dev/null 2>&1; then printf '%sOK%s\n' "$GREEN" "$OFF"; return 0
+  else printf '%sFAULT%s\n' "$RED" "$OFF"; return 1; fi
+}
+banner() { printf '\n%s%s%s\n' "$GREEN" "$*" "$OFF"; }
+. /etc/rc.conf

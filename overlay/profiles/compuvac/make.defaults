@@ -1,0 +1,5 @@
+# Compuvac sits on Gentoo's desktop profile so most packages come prebuilt from Gentoo's
+# binary host. What makes it Compuvac is what runs, not what's compiled in: no systemd,
+# no OpenRC, no session daemons (seatd is the only seat arbiter), one program on screen.
+USE="-systemd seatd alsa"
+INPUT_DEVICES="libinput"
