@@ -5,5 +5,5 @@ system|htop|PROCESS MONITOR
 mixer|alsamixer|AUDIO CHANNELS
 network|ip -c addr; read -rsn1|NETWORK STATUS
 manual|compuvac-help|OPERATOR MANUAL
-install|compuvac|SOFTWARE REQUISITION
+software|compuvac|SOFTWARE REQUISITION
 shell|bash -l|RAW SHELL

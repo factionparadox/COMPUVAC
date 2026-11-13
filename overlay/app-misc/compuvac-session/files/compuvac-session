@@ -5,13 +5,17 @@
 XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
 export XDG_RUNTIME_DIR
+# Everything the session says goes to a log, so a failure can be read afterwards.
+mkdir -p "$HOME/.local/state"
+exec >"$HOME/.local/state/compuvac-session.log" 2>&1
 export XDG_SESSION_TYPE=wayland
 export QT_QPA_PLATFORM=wayland
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1   # no title bars: one program, whole screen
 export MC_SKIN=compuvac
 export COMPUVAC=1
 compuvac-sound boot &
 # cool-retro-term only honours -e for the program, and -e must come last.
 # It also never starts a program given with no arguments (an empty argument
 # list breaks under Qt 6), so the console gets one it ignores.
-exec cage -s -- cool-retro-term --fullscreen --profile "Monochrome Green" \
+exec cage -s -d -- cool-retro-term --fullscreen --profile "Monochrome Green" \
 	-e /usr/bin/compuvac-console operator
