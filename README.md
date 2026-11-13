@@ -38,6 +38,18 @@ Everything is compiled from source, on every core. Options, set before the comma
 - `BINPKGS=1` takes Gentoo's ready-made binaries wherever they match: much quicker.
 - `NO_FIRMWARE=1` leaves out linux-firmware (only for virtual machines).
 
+## Compiling Compuvac on itself
+
+However the ISO was built, the installed Compuvac compiles its own software:
+`compuvac install` builds from source, never from binaries. To make the whole
+machine its own work, on the machine itself:
+
+    compuvac tune       # -march=native, CPU_FLAGS_X86 and job count for this processor
+    compuvac rebuild    # recompile every program, and the kernel, from source here
+
+A quick way in is to build the ISO with `BINPKGS=1` on any computer, install,
+then tune and rebuild on the target machine.
+
 ## Laptop support
 
 Chosen for the Framework Laptop 13 Pro (Intel Core Ultra Series 3), useful on any laptop:

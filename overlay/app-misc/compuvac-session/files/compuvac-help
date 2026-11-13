@@ -13,6 +13,8 @@ less -R <<'TXT'
   compuvac remove NAME      Decommission software.
   compuvac update           Bring the core store up to date.
   compuvac search WORDS     Search the archive.
+  compuvac tune             Fit the compiler to this processor.
+  compuvac rebuild          Recompile everything, the kernel too, here.
 
   In the program index: NETWORK joins Wi-Fi, POWER sets the power
   profile, BLUETOOTH pairs devices, FIRMWARE updates it via LVFS,

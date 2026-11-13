@@ -5,7 +5,8 @@ G=$'\e[32m' B=$'\e[1;32m' D=$'\e[2;32m' N=$'\e[0m'
 say()   { printf '%s%s%s\n' "$B" "$*" "$N"; }
 note()  { printf '%s%s%s\n' "$D" "$*" "$N"; }
 fault() { compuvac-sound fault; printf '%sFAULT: %s%s\n' "$B" "$*" "$N" >&2; exit 1; }
-EMERGE=(emerge --getbinpkg --usepkg --binpkg-respect-use=y --binpkg-changed-deps=n)
+# Compuvac compiles its own software: no binary packages.
+EMERGE=(emerge)
 USEDIR=/etc/portage/package.use
 
 need_root() {
@@ -14,6 +15,14 @@ need_root() {
 	if command -v doas >/dev/null; then exec doas "$0" "$@"; fi
 	exec su -c "$(printf '%q ' "$0" "$@")"
 }
+
+need_archive() {  # Gentoo's package tree isn't shipped; fetch it on first use.
+	[ -f /var/db/repos/gentoo/metadata/timestamp.chk ] && return
+	say "NO ARCHIVE HELD. FETCHING IT (ONE TIME)."
+	emerge-webrsync -q || fault "ARCHIVE UNREACHABLE. JOIN A NETWORK FIRST (CTRL+SPACE, NETWORK)."
+}
+
+confirm() { local a; read -rp "${G}$1 [y/N] ${N}" a </dev/tty; [[ ${a,,} == y* ]]; }
 
 resolve() {  # name -> cat/pkg
 	local atom
@@ -57,6 +66,7 @@ install|requisition)
 	shift; [ $# -ge 1 ] || fault "SPECIFY SOFTWARE."
 	need_root install "$@"
 	quick=; [ "$1" = -q ] && { quick=1; shift; }
+	need_archive
 	for name; do
 		atom=$(resolve "$name") || exit 1
 		say "REQUISITION: ${atom^^}"
@@ -68,6 +78,7 @@ install|requisition)
 	compuvac-sound return ;;
 reconsider)
 	shift; need_root reconsider "$@"
+	need_archive
 	atom=$(resolve "$1") || exit 1
 	rm -f "$USEDIR/compuvac-${atom//\//_}"
 	interrogate "$atom"
@@ -83,12 +94,67 @@ remove|decommission)
 	say "DECOMMISSIONED." ;;
 update)
 	need_root update
+	need_archive
 	say "SYNCHRONISING ARCHIVE."
-	emaint sync -a || fault "ARCHIVE UNREACHABLE."
+	emaint sync -r gentoo || fault "ARCHIVE UNREACHABLE."
 	say "BRINGING CORE STORE UP TO DATE."
 	"${EMERGE[@]}" --update --deep --newuse @world || fault "UPDATE INCOMPLETE."
 	emerge --depclean --ask=n
 	say "CORE STORE CURRENT." ;;
+tune)
+	need_root tune
+	mc=/etc/portage/make.conf
+	j=$(nproc)
+	cpu=$(sed -n 's/^model name[[:space:]]*: //p' /proc/cpuinfo | head -1)
+	arch=$(gcc -march=native -Q --help=target 2>/dev/null | awk '$1=="-march=" {print $2; exit}')
+	say "TUNING COMPUVAC FOR THIS MACHINE"
+	note "   PROCESSOR   ${cpu^^}"
+	note "   TARGET      -march=native (${arch:-unknown})   ${j} CORES"
+	sed -i "s|^COMMON_FLAGS=.*|COMMON_FLAGS=\"-O2 -pipe -march=native\"|; s|^MAKEOPTS=.*|MAKEOPTS=\"-j$j -l$j\"|" "$mc"
+	grep -q '^MAKEOPTS=' "$mc" || echo "MAKEOPTS=\"-j$j -l$j\"" >> "$mc"
+	mkdir -p /etc/portage/package.use
+	cf=$(cpuid2cpuflags); case $cf in '*/*'*) ;; *) cf="*/* $cf" ;; esac   # newer versions add */* themselves
+	echo "$cf" > /etc/portage/package.use/00cpu-flags
+	note "   CPU_FLAGS   ${cf#*: }"
+	say "SETTINGS WRITTEN TO $mc."
+	note "EVERYTHING BUILT FROM NOW ON IS FOR THIS PROCESSOR."
+	note "TO RECOMPILE WHAT IS ALREADY HERE: compuvac rebuild" ;;
+rebuild)
+	need_root rebuild
+	need_archive
+	grep -q -- '-march=native' /etc/portage/make.conf ||
+		note "NOTE: NOT TUNED FOR THIS MACHINE YET ('compuvac tune' FIRST IS RECOMMENDED)."
+	# A kernel installed as a binary is replaced by one compiled here.
+	kswap=
+	[ -d /var/db/pkg/sys-kernel ] && ls /var/db/pkg/sys-kernel | grep -q '^gentoo-kernel-bin-' && kswap=1
+	n=$(emerge -pe @world 2>/dev/null | grep -c '^\[ebuild')
+	say "REBUILD: EVERY PROGRAM ($n) WILL BE COMPILED FROM SOURCE ON THIS MACHINE."
+	[ -n "$kswap" ] && note "THE KERNEL WILL BE COMPILED HERE TOO, REPLACING THE PREBUILT ONE."
+	note "THIS TAKES MANY HOURS. THE MACHINE STAYS USABLE. MAINS POWER IS ADVISED."
+	note "IF IT IS INTERRUPTED, RUN 'compuvac rebuild' AGAIN TO CONTINUE."
+	confirm "PROCEED?" || fault "REBUILD ABANDONED."
+	compuvac-sound launch
+	if [ -n "$kswap" ]; then
+		# Swap the prebuilt kernel for the source one in the chosen set; it then
+		# compiles once, with everything else.
+		emerge --deselect sys-kernel/gentoo-kernel-bin >/dev/null
+		grep -qx sys-kernel/gentoo-kernel /var/lib/portage/world ||
+			echo sys-kernel/gentoo-kernel >> /var/lib/portage/world
+	fi
+	if [ -f /var/cache/compuvac/rebuild-resume ] && emerge --resume --keep-going 2>/dev/null; then :; else
+		mkdir -p /var/cache/compuvac; touch /var/cache/compuvac/rebuild-resume
+		emerge --emptytree --keep-going @world || fault "SOME PROGRAMS FAILED TO COMPILE (SEE ABOVE). RUN 'compuvac rebuild' TO RETRY."
+	fi
+	rm -f /var/cache/compuvac/rebuild-resume
+	emerge --depclean --ask=n
+	emerge @preserved-rebuild
+	kver=$(ls -t /lib/modules | head -1)
+	say "PREPARING THE NEW KERNEL ($kver)."
+	dracut -q --force --hostonly --kver "$kver" "/boot/initramfs-$kver.img" &&
+		grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1 || fault "BOOT FILES NOT UPDATED."
+	compuvac-sound ready
+	say "REBUILD COMPLETE. COMPUVAC IS NOW ENTIRELY ITS OWN WORK."
+	note "RESTART TO USE THE NEW KERNEL." ;;
 search)
 	shift; [ $# -ge 1 ] || fault "SPECIFY SEARCH TERMS."
 	say "SEARCHING ARCHIVE FOR: ${*^^}"
@@ -114,6 +180,8 @@ ${G}  compuvac install NAME...     requisition software (asks about each functio
   compuvac remove NAME...      decommission software
   compuvac update              bring everything up to date
   compuvac search WORDS        search the archive
+  compuvac tune                fit the compiler settings to this machine's processor
+  compuvac rebuild             recompile every program (and the kernel) from source here
   compuvac status              report on the core store${N}
 TXT
 	;;

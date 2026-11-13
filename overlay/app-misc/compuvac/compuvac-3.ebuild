@@ -16,6 +16,7 @@ RDEPEND="
 	app-misc/compuvac-session
 	sys-apps/portage
 	sys-apps/compuvac-hardware
+	app-portage/cpuid2cpuflags
 	app-admin/doas
 	sys-block/parted
 	sys-boot/grub

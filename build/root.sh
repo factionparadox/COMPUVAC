@@ -23,7 +23,8 @@ if [ -n "${MARCH:-}" ]; then
 		"$F" "$F" "$F" "$F" "$F" >> /etc/portage/make.conf
 	if [ "$MARCH" = native ]; then
 		emerge --getbinpkg --usepkg --quiet --oneshot --noreplace app-portage/cpuid2cpuflags >/dev/null
-		echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags
+		cf=$(cpuid2cpuflags); case $cf in '*/*'*) ;; *) cf="*/* $cf" ;; esac
+		echo "$cf" > /etc/portage/package.use/00cpu-flags
 		mkdir -p "$T/etc/portage/package.use"
 		cp /etc/portage/package.use/00cpu-flags "$T/etc/portage/package.use/"
 	fi
@@ -55,7 +56,24 @@ mkdir -p "$T/usr/bin" "$T/usr/lib" "$T/usr/lib64"
 # Portage writes into ROOT's config: give the target the same profile.
 mkdir -p "$T/etc/portage/repos.conf" "$T/var/db/repos"
 cp /etc/portage/repos.conf/compuvac.conf "$T/etc/portage/repos.conf/"
-cp /etc/portage/make.conf "$T/etc/portage/make.conf"
+# The installed Compuvac compiles its own software, however this root was built.
+# 'compuvac tune' later fits the CPU lines to the machine it runs on.
+TF="-O2 -pipe${MARCH:+ -march=$MARCH}"
+cat > "$T/etc/portage/make.conf" <<MC
+# COMPUVAC: this machine compiles its own software from source.
+# Run 'compuvac tune' on the machine itself to fit these lines to its CPU.
+COMMON_FLAGS="$TF"
+CFLAGS="\${COMMON_FLAGS}"
+CXXFLAGS="\${COMMON_FLAGS}"
+FCFLAGS="\${COMMON_FLAGS}"
+FFLAGS="\${COMMON_FLAGS}"
+MAKEOPTS="-j$J -l$J"
+
+ACCEPT_LICENSE="*"
+LC_MESSAGES=C.UTF-8
+FEATURES="\${FEATURES} -news"
+EMERGE_DEFAULT_OPTS="--quiet-build=y"
+MC
 ln -snf ../../var/db/repos/compuvac/profiles/compuvac "$T/etc/portage/make.profile"
 # Binhost trust: reuse the builder's keyring rather than bootstrapping one in $T.
 rm -rf "$T/etc/portage/gnupg"; cp -a /etc/portage/gnupg "$T/etc/portage/gnupg"
@@ -66,7 +84,6 @@ echo ">>> COMPUVAC: configuring"
 # The installed system keeps its own copy of the overlay and the binhost settings.
 rm -rf "$T/var/db/repos/compuvac"; cp -a /var/db/repos/compuvac "$T/var/db/repos/compuvac"
 cp -a /etc/portage/binrepos.conf "$T/etc/portage/"
-sed -i '/ipc-sandbox/d' "$T/etc/portage/make.conf"
 cat > "$T/etc/locale.gen" <<'L'
 en_GB.UTF-8 UTF-8
 en_US.UTF-8 UTF-8
