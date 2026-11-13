@@ -9,6 +9,7 @@ compuvac_banner() {
 	printf '  OPERATOR  %s        TERMINAL  %s\n' "${USER^^}" "$(tty | sed 's#/dev/##')"
 	printf '  CORE      %s\n\n' "$(uname -r)"
 	printf '  CTRL+SPACE  PROGRAMS      F2  FILES      F10  HELP\n\n'
+	if [ -f /etc/compuvac/live ]; then printf '  LIVE SYSTEM. TO INSTALL: CTRL+SPACE, THEN "INSTALL".\n\n'; fi
 }
 
 compuvac_run_widget() { compuvac-run; READLINE_LINE=; compuvac_banner; }

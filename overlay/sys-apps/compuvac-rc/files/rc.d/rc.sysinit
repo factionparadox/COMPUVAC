@@ -11,6 +11,7 @@ say "KERNEL INTERFACES" sh -c '
   mountpoint -q /run  || mount -t tmpfs -o mode=0755,nosuid,nodev run /run
   mountpoint -q /dev  || mount -t devtmpfs -o mode=0755,nosuid dev /dev
   mkdir -p /dev/pts /dev/shm /run/lock
+  install -d -m 1777 /run/user
   mountpoint -q /dev/pts || mount -t devpts -o mode=0620,gid=5,nosuid,noexec devpts /dev/pts
   mountpoint -q /dev/shm || mount -t tmpfs -o mode=1777,nosuid,nodev shm /dev/shm'
 

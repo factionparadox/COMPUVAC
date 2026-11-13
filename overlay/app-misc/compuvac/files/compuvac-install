@@ -1,0 +1,105 @@
+#!/bin/bash
+# compuvac-install — commit Compuvac to a disk. Run from the live system.
+set -eu -o pipefail
+B=$'\e[1;32m' G=$'\e[32m' D=$'\e[2;32m' N=$'\e[0m'
+say()   { printf '%s%s%s\n' "$B" "$*" "$N"; }
+note()  { printf '%s%s%s\n' "$D" "$*" "$N"; }
+fault() { compuvac-sound fault; printf '\n%sFAULT: %s%s\n' "$B" "$*" "$N" >&2; exit 1; }
+ask()   { local a; read -rp "${G}$1 ${N}" a </dev/tty; printf '%s' "$a"; }
+step()  { printf '%s  %-44s%s' "$G" "$1" "$N"; shift; if "$@" >>/tmp/compuvac-install.log 2>&1; then printf '%sOK%s\n' "$B" "$N"; else printf '%sFAULT%s\n' "$B" "$N"; fault "SEE /tmp/compuvac-install.log"; fi; }
+M=/mnt/compuvac
+SQUASH=/run/initramfs/live/LiveOS/squashfs.img
+
+[ "$EUID" = 0 ] || exec doas "$0" "$@"
+[ -f /etc/compuvac/live ] || fault "THIS IS NOT THE LIVE SYSTEM."
+[ -r "$SQUASH" ] || fault "LIVE IMAGE NOT FOUND AT $SQUASH."
+
+clear
+say "COMPUVAC INSTALLATION PROCEDURE"
+note "THE SYSTEM WILL BE COMMITTED TO A DISK OF YOUR CHOOSING."
+note "EVERYTHING ON THAT DISK WILL BE DESTROYED."
+echo
+
+# --- target disk
+live=$(lsblk -no PKNAME "$(findmnt -no SOURCE /run/initramfs/live 2>/dev/null)" 2>/dev/null || true)
+disk=$(lsblk -dpno NAME,SIZE,MODEL -e 7,11 | grep -v "^/dev/${live:-none} " |
+	fzf --reverse --no-info --prompt='SELECT DISK > ' --color=bw --border=sharp \
+	    --border-label=' AVAILABLE DISKS ' | awk '{print $1}') || true
+[ -n "$disk" ] || fault "NO DISK SELECTED. PROCEDURE ABANDONED."
+echo; lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINTS "$disk" | sed 's/^/   /'; echo
+say "ALL DATA ON $disk WILL BE DESTROYED."
+[ "$(ask "TYPE THE DISK NAME ($(basename "$disk")) TO CONFIRM:")" = "$(basename "$disk")" ] ||
+	fault "CONFIRMATION INCORRECT. PROCEDURE ABANDONED."
+
+# --- operator
+echo
+user=$(ask "OPERATOR DESIGNATION (USERNAME):")
+[[ $user =~ ^[a-z_][a-z0-9_-]{0,30}$ ]] || fault "DESIGNATION NOT ACCEPTABLE."
+while :; do
+	read -rsp "${G}OPERATOR PASSWORD: ${N}" p1 </dev/tty; echo
+	read -rsp "${G}REPEAT PASSWORD:   ${N}" p2 </dev/tty; echo
+	[ -n "$p1" ] && [ "$p1" = "$p2" ] && break
+	note "PASSWORDS DO NOT MATCH. AGAIN."
+done
+host=$(ask "MACHINE DESIGNATION [compuvac]:"); host=${host:-compuvac}
+tz=$( (cd /usr/share/zoneinfo && find . -type f -path './[A-Z]*' | sed 's#^\./##' | sort) |
+	fzf --reverse --no-info --prompt='TIME ZONE > ' --query='Europe/London' --select-1 --color=bw) || tz=UTC
+keymap=$(ask "KEYBOARD [uk]:"); keymap=${keymap:-uk}
+
+echo; say "COMMENCING."; compuvac-sound launch
+p() { [[ $disk =~ [0-9]$ ]] && echo "${disk}p$1" || echo "${disk}$1"; }
+if [ -d /sys/firmware/efi ]; then
+	step "PARTITIONING (UEFI)" parted -s "$disk" mklabel gpt \
+		mkpart ESP fat32 1MiB 513MiB set 1 esp on mkpart root ext4 513MiB 100%
+	efi=$(p 1) root=$(p 2)
+else
+	step "PARTITIONING (BIOS)" parted -s "$disk" mklabel gpt \
+		mkpart grub 1MiB 3MiB set 1 bios_grub on mkpart root ext4 3MiB 100%
+	efi= root=$(p 2)
+fi
+step "AWAITING DEVICES" udevadm settle
+[ -n "$efi" ] && step "FORMATTING SYSTEM PARTITION" mkfs.vfat -F32 -n COMPUVAC "$efi"
+step "FORMATTING CORE STORE" mkfs.ext4 -qF -L compuvac "$root"
+mkdir -p "$M"; step "MOUNTING CORE STORE" mount "$root" "$M"
+if [ -n "$efi" ]; then mkdir -p "$M/boot/efi"; step "MOUNTING SYSTEM PARTITION" mount "$efi" "$M/boot/efi"; fi
+step "TRANSFERRING SYSTEM (THIS IS THE LONG ONE)" unsquashfs -f -q -n -d "$M" "$SQUASH"
+
+ruuid=$(blkid -s UUID -o value "$root")
+{
+	echo "UUID=$ruuid / ext4 noatime 0 1"
+	[ -n "$efi" ] && echo "UUID=$(blkid -s UUID -o value "$efi") /boot/efi vfat umask=0077 0 2"
+	echo "tmpfs /tmp tmpfs nosuid,nodev 0 0"
+} > "$M/etc/fstab"
+
+# Undo the live system's conveniences.
+rm -f "$M/etc/compuvac/live" "$M/etc/compuvac/programs" "$M/etc/pam.d/ly-autologin"
+sed -i 's|^auto_login_user *=.*|auto_login_user = null|; s|^auto_login_session *=.*|auto_login_session = null|' "$M/etc/ly/config.ini"
+printf 'permit persist :wheel\n' > "$M/etc/doas.conf"; chmod 600 "$M/etc/doas.conf"
+sed -i "s|^HOSTNAME=.*|HOSTNAME=$host|; s|^KEYMAP=.*|KEYMAP=$keymap|" "$M/etc/rc.conf"
+ln -snf "../usr/share/zoneinfo/$tz" "$M/etc/localtime"
+
+for d in proc sys dev run; do mount --rbind /$d "$M/$d"; mount --make-rslave "$M/$d"; done
+[ -d /sys/firmware/efi/efivars ] && mount --rbind /sys/firmware/efi/efivars "$M/sys/firmware/efi/efivars" 2>/dev/null || true
+
+c() { chroot "$M" "$@"; }
+step "ENROLLING OPERATOR ${user^^}" c sh -c "
+	userdel -r agent 2>/dev/null; true
+	useradd -m -G wheel,audio,video,input,seat -s /bin/bash '$user'"
+printf '%s:%s\n' "$user" "$p1" | step "SETTING CREDENTIALS" c chpasswd
+unset p1 p2
+kver=$(ls "$M/lib/modules" | head -1)
+step "GENERATING INITIAL RAMDISK" c dracut -q --force --hostonly --kver "$kver"
+if [ -n "$efi" ]; then
+	step "INSTALLING BOOT LOADER" c grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+		--bootloader-id=Compuvac --removable
+	c grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Compuvac \
+		>>/tmp/compuvac-install.log 2>&1 || note "  (FIRMWARE ENTRY NOT WRITTEN; FALLBACK PATH WILL BE USED.)"
+else
+	step "INSTALLING BOOT LOADER" c grub-install --target=i386-pc "$disk"
+fi
+step "WRITING BOOT MENU" c grub-mkconfig -o /boot/grub/grub.cfg
+
+umount -R "$M"
+echo; compuvac-sound ready
+say "INSTALLATION COMPLETE."
+note "REMOVE THE INSTALLATION MEDIUM AND TYPE 'reboot'."

@@ -3,3 +3,9 @@ sys-auth/seatd server
 # Wayland only: one program on screen through cage, no X server
 x11-misc/ly -X
 gui-wm/cage -X
+# Kernel: initramfs via dracut; the live image adds dmsquash-live itself.
+sys-kernel/installkernel dracut grub
+gui-libs/wlroots -X
+# The build and the installer run dracut themselves (it cannot run under ROOT=).
+sys-kernel/gentoo-kernel-bin -initramfs
+sys-fs/squashfs-tools zstd xz

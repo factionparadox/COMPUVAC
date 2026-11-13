@@ -69,6 +69,7 @@ src_prepare() {
 src_configure() {
 	local my_zbs_args=(
 		-Denable_x11_support=$(usex X true false)
+		-Ddefault_tty=1
 	)
 
 	zig_src_configure

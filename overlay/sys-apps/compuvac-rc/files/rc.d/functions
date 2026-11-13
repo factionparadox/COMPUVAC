@@ -2,6 +2,8 @@
 GREEN=$'\e[1;32m' DIM=$'\e[0;32m' RED=$'\e[1;31m' OFF=$'\e[0m'
 WIDTH=46
 
+export PATH=/usr/bin:/usr/sbin
+
 # say "CORE STORE" command args...   ->   CORE STORE .................... OK / FAULT
 say() {
   local label=$1; shift

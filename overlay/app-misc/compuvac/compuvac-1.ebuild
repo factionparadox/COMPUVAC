@@ -15,8 +15,15 @@ RDEPEND="
 	app-portage/gentoolkit
 	app-misc/compuvac-session
 	sys-apps/portage
+	app-admin/doas
+	sys-block/parted
+	sys-boot/grub
+	sys-fs/dosfstools
+	sys-fs/e2fsprogs
+	sys-fs/squashfs-tools
+	sys-kernel/dracut
 "
 
 src_install() {
-	dobin "${FILESDIR}"/compuvac
+	dobin "${FILESDIR}"/compuvac{,-install}
 }

@@ -6,7 +6,9 @@ rc:2345:wait:/etc/rc.d/rc.multi
 l0:0:wait:/etc/rc.d/rc.shutdown halt
 l6:6:wait:/etc/rc.d/rc.shutdown reboot
 
-# tty1 is Compuvac's login screen (Ly, started by rc.multi); the others are plain consoles
+# tty1 is Compuvac's login screen: Ly, kept alive by init itself.
+ly:2345:respawn:/etc/rc.d/greeter
+# The others are plain maintenance consoles.
 c2:2345:respawn:/sbin/agetty --noclear 38400 tty2 linux
 c3:2345:respawn:/sbin/agetty --noclear 38400 tty3 linux
 

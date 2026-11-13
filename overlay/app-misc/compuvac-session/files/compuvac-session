@@ -1,9 +1,17 @@
 #!/bin/sh
 # Ly starts this. One program owns the screen: the terminal.
+# No elogind here. Ly names the runtime directory but nothing creates it,
+# so the session always makes sure it exists and is private.
+XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+export XDG_RUNTIME_DIR
 export XDG_SESSION_TYPE=wayland
 export QT_QPA_PLATFORM=wayland
 export MC_SKIN=compuvac
 export COMPUVAC=1
 compuvac-sound boot &
+# cool-retro-term only honours -e for the program, and -e must come last.
+# It also never starts a program given with no arguments (an empty argument
+# list breaks under Qt 6), so the console gets one it ignores.
 exec cage -s -- cool-retro-term --fullscreen --profile "Monochrome Green" \
-	--program /usr/bin/compuvac-console
+	-e /usr/bin/compuvac-console operator

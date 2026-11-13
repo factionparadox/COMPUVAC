@@ -1,0 +1,11 @@
+#!/bin/sh
+# Build Compuvac from nothing to an ISO.   sudo build/build
+# Needs podman. Output: .build/out/compuvac-YYYY.MM-x86_64.iso
+set -eu
+cd "$(dirname "$0")/.."
+[ "$(id -u)" = 0 ] || { echo "COMPUVAC: run as root (sudo build/build)"; exit 1; }
+echo ">>> COMPUVAC: preparing the builder"
+podman build -q --pull=newer -t compuvac-builder build/builder >/dev/null
+if [ -z "${KEEP_ROOT:-}" ]; then rm -rf .build/root; fi
+build/in-builder build/root.sh
+build/in-builder build/iso.sh
