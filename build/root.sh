@@ -60,7 +60,7 @@ ln -snf ../../var/db/repos/compuvac/profiles/compuvac "$T/etc/portage/make.profi
 # Binhost trust: reuse the builder's keyring rather than bootstrapping one in $T.
 rm -rf "$T/etc/portage/gnupg"; cp -a /etc/portage/gnupg "$T/etc/portage/gnupg"
 
-emerge --root="$T" --config-root=/ --with-bdeps=n --update --newuse $PKGS
+emerge --root="$T" --config-root=/ --with-bdeps=n --update --deep --newuse $PKGS
 
 echo ">>> COMPUVAC: configuring"
 # The installed system keeps its own copy of the overlay and the binhost settings.

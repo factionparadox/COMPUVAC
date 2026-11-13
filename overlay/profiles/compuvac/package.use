@@ -12,3 +12,6 @@ sys-kernel/gentoo-kernel -initramfs
 sys-fs/squashfs-tools zstd xz
 # Audio for the session (no systemd user services; the session starts PipeWire itself).
 media-video/pipewire sound-server pipewire-alsa
+# No elogind runs: without this WirePlumber can treat the seat as inactive and mute audio.
+media-video/wireplumber -elogind
+media-video/pipewire -elogind

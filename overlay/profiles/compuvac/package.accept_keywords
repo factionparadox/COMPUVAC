@@ -9,3 +9,8 @@ app-misc/brightnessctl ~amd64
 =sys-kernel/gentoo-kernel-7.3.4* ~amd64
 =sys-kernel/gentoo-kernel-bin-7.3.4* ~amd64
 =virtual/dist-kernel-7.3.4* ~amd64
+# Newest hardware support for the Framework Laptop 13 Pro (Panther Lake, fingerprint reader).
+=sys-power/thermald-2.5.13* ~amd64
+=sys-auth/libfprint-1.94.9* ~amd64
+=sys-auth/fprintd-1.94.5* ~amd64
+=sys-firmware/sof-firmware-2026.09* ~amd64
