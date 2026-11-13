@@ -18,6 +18,7 @@ chroot "$T" env https_proxy="${https_proxy:-}" HTTPS_PROXY="${HTTPS_PROXY:-}" \
 	sys-apps/systemd-utils sys-fs/zfs sys-fs/zfs-kmod sys-boot/zfsbootmenu || rc=$?
 umount -R "$T/var/db/repos/gentoo" "$T/var/db/repos/compuvac" "$T/var/cache/distfiles"
 for d in dev sys proc; do umount -R "$T/$d"; done
+rm -f "$T/etc/resolv.conf"   # the builder's DNS; dhcpcd writes the real one
 # The real overlay copy and an empty tree mountpoint stay behind for the installed system.
 [ $rc = 0 ] && ls "$T"/lib/modules/*/extra/zfs.ko* >/dev/null 2>&1 && echo ">>> COMPUVAC: ZFS module built"
 exit $rc
