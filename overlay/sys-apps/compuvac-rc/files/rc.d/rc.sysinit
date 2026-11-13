@@ -21,10 +21,6 @@ say "DEVICE REGISTRY" sh -c "$udevd --daemon && udevadm trigger --action=add --t
 
 say "CORE STORE INTEGRITY" sh -c 'fsck -A -T -C -a -t noopts=_netdev; [ $? -le 1 ]'
 say "CORE STORE" sh -c 'mount -o remount,rw / && mount -a -t nonfs,nocifs && swapon -a'
-# ZFS: the pool is imported by the initramfs; mount the rest of its datasets.
-if command -v zfs >/dev/null && [ -c /dev/zfs ]; then
-  say "ZFS DATASETS" zfs mount -a
-fi
 
 say "OPERATOR CONSOLE" sh -c "loadkeys -q ${KEYMAP:-uk}; [ -z \"$FONT\" ] || setfont \"$FONT\"; true"
 say "CHRONOMETER" hwclock --hctosys --utc

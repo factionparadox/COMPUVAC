@@ -1,4 +1,2 @@
 # Zig comes prebuilt (dev-lang/zig-bin): building it means building LLVM
 dev-lang/zig
-# ZFS userland must match the newest kernel module (zfs-kmod 2.3.x).
->=sys-fs/zfs-2.4

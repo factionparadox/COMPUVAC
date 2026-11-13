@@ -13,9 +13,6 @@ printf '[compuvac]\nlocation = /var/db/repos/compuvac\npriority = 100\n' \
 ln -snf /var/db/repos/compuvac/profiles/compuvac /etc/portage/make.profile
 emerge --getbinpkg --usepkg --binpkg-respect-use=y --quiet --newuse \
 	dev-libs/libisoburn sys-fs/mtools sys-fs/squashfs-tools sys-boot/grub
-# The installed system unpacks the zstd image too.
-cp -a /etc/portage/gnupg/. "$T/etc/portage/gnupg/" 2>/dev/null || true
-emerge --root="$T" --config-root=/ --getbinpkg --usepkg --quiet --newuse sys-fs/squashfs-tools
 
 echo ">>> COMPUVAC: system settings"
 # Green console from the very first line the kernel prints.

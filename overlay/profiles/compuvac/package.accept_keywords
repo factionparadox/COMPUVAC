@@ -5,4 +5,7 @@ x11-terms/cool-retro-term ~amd64
 dev-lang/zig ~amd64
 dev-lang/zig-bin ~amd64
 app-misc/brightnessctl ~amd64
-sys-boot/zfsbootmenu ~amd64
+# Kernel 7.3 (testing branch in Gentoo), pinned to the exact release.
+=sys-kernel/gentoo-kernel-7.3.4* ~amd64
+=sys-kernel/gentoo-kernel-bin-7.3.4* ~amd64
+=virtual/dist-kernel-7.3.4* ~amd64

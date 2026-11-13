@@ -13,7 +13,6 @@ SQUASH=/run/initramfs/live/LiveOS/squashfs.img
 [ "$EUID" = 0 ] || exec doas "$0" "$@"
 [ -f /etc/compuvac/live ] || fault "THIS IS NOT THE LIVE SYSTEM."
 [ -r "$SQUASH" ] || fault "LIVE IMAGE NOT FOUND AT $SQUASH."
-[ -d /sys/firmware/efi ] || fault "COMPUVAC BOOTS THROUGH UEFI. START THIS MACHINE IN UEFI MODE AND TRY AGAIN."
 
 clear
 say "COMPUVAC INSTALLATION PROCEDURE"
@@ -21,7 +20,7 @@ note "THE SYSTEM WILL BE COMMITTED TO A DISK OF YOUR CHOOSING."
 note "EVERYTHING ON THAT DISK WILL BE DESTROYED."
 echo
 
-# --- target disk (everything on it goes: EFI partition + one ZFS pool)
+# --- target disk (everything on it goes)
 live=$(lsblk -no PKNAME "$(findmnt -no SOURCE /run/initramfs/live 2>/dev/null)" 2>/dev/null || true)
 disk=$(lsblk -dpno NAME,SIZE,MODEL -e 7,11 | grep -v "^/dev/${live:-none} " |
 	fzf --reverse --no-info --prompt='SELECT DISK > ' --color=bw --border=sharp \
@@ -49,37 +48,25 @@ keymap=$(ask "KEYBOARD [uk]:"); keymap=${keymap:-uk}
 
 echo; say "COMMENCING."; compuvac-sound launch
 p() { [[ $disk =~ [0-9]$ ]] && echo "${disk}p$1" || echo "${disk}$1"; }
-POOL=cvpool
-BE=$POOL/ROOT/compuvac
-step "LOADING ZFS" modprobe zfs
-step "PARTITIONING" parted -s "$disk" mklabel gpt \
-	mkpart ESP fat32 1MiB 513MiB set 1 esp on mkpart compuvac 513MiB 100%
-efi=$(p 1) part=$(p 2)
+if [ -d /sys/firmware/efi ]; then
+	step "PARTITIONING (UEFI)" parted -s "$disk" mklabel gpt \
+		mkpart ESP fat32 1MiB 513MiB set 1 esp on mkpart compuvac xfs 513MiB 100%
+	efi=$(p 1) root=$(p 2)
+else
+	step "PARTITIONING (BIOS)" parted -s "$disk" mklabel gpt \
+		mkpart grub 1MiB 3MiB set 1 bios_grub on mkpart compuvac xfs 3MiB 100%
+	efi= root=$(p 2)
+fi
 step "AWAITING DEVICES" udevadm settle
-step "FORMATTING SYSTEM PARTITION" mkfs.vfat -F32 -n COMPUVAC "$efi"
-# The pool is named by partition UUID so it survives disks being reordered.
-pdev=/dev/disk/by-partuuid/$(blkid -s PARTUUID -o value "$part")
-step "GENERATING HOST IDENTITY" sh -c 'rm -f /etc/hostid; zgenhostid -f'
-step "CREATING CORE STORE (ZFS POOL)" zpool create -f -o ashift=12 -o autotrim=on \
-	-o cachefile=/etc/zfs/zpool.cache \
-	-O compression=zstd -O acltype=posixacl -O xattr=sa -O relatime=on \
-	-O mountpoint=none -O canmount=off -R "$M" "$POOL" "$pdev"
-step "CREATING BOOT ENVIRONMENT" sh -c "
-	zfs create -o mountpoint=none $POOL/ROOT &&
-	zfs create -o mountpoint=/ -o canmount=noauto $BE &&
-	zfs create -o mountpoint=/home $POOL/home &&
-	zpool set bootfs=$BE $POOL &&
-	zfs mount $BE && zfs mount $POOL/home"
-# ZFSBootMenu passes these to the kernel: quiet, and the green console.
-cmdline="quiet loglevel=3 $(tr ' ' '\n' </proc/cmdline | grep '^vt\.default_' | tr '\n' ' ')"
-step "RECORDING KERNEL PARAMETERS" zfs set org.zfsbootmenu:commandline="$cmdline" "$POOL/ROOT"
-mkdir -p "$M/boot/efi"; step "MOUNTING SYSTEM PARTITION" mount "$efi" "$M/boot/efi"
+[ -n "$efi" ] && step "FORMATTING SYSTEM PARTITION" mkfs.vfat -F32 -n COMPUVAC "$efi"
+step "FORMATTING CORE STORE (XFS)" mkfs.xfs -f -L compuvac "$root"
+mkdir -p "$M"; step "MOUNTING CORE STORE" mount "$root" "$M"
+if [ -n "$efi" ]; then mkdir -p "$M/boot/efi"; step "MOUNTING SYSTEM PARTITION" mount "$efi" "$M/boot/efi"; fi
 step "TRANSFERRING SYSTEM (THIS IS THE LONG ONE)" unsquashfs -f -q -n -d "$M" "$SQUASH"
-mkdir -p "$M/etc/zfs"; cp /etc/hostid "$M/etc/hostid"; cp /etc/zfs/zpool.cache "$M/etc/zfs/"
 
 {
-	echo "# The root and /home are ZFS datasets and need no entries here."
-	echo "UUID=$(blkid -s UUID -o value "$efi") /boot/efi vfat umask=0077 0 2"
+	echo "UUID=$(blkid -s UUID -o value "$root") / xfs noatime 0 1"
+	[ -n "$efi" ] && echo "UUID=$(blkid -s UUID -o value "$efi") /boot/efi vfat umask=0077 0 2"
 	echo "tmpfs /tmp tmpfs nosuid,nodev 0 0"
 } > "$M/etc/fstab"
 
@@ -101,34 +88,19 @@ printf '%s:%s\n' "$user" "$p1" | step "SETTING CREDENTIALS" c chpasswd
 unset p1 p2
 kver=$(ls "$M/lib/modules" | head -1)
 c rm -f /boot/vmlinuz-live /boot/initramfs-live.img
-step "GENERATING INITIAL RAMDISK" c dracut -q --force --hostonly --add zfs \
+step "GENERATING INITIAL RAMDISK" c dracut -q --force --hostonly \
 	--kver "$kver" "/boot/initramfs-$kver.img"
-cat > "$M/etc/zfsbootmenu/config.yaml" <<'ZBM'
-Global:
-  ManageImages: true
-  BootMountPoint: /boot/efi
-  DracutConfDir: /etc/zfsbootmenu/dracut.conf.d
-Components:
-  Enabled: false
-EFI:
-  ImageDir: /boot/efi/EFI/zbm
-  Stub: /usr/lib/systemd/boot/efi/linuxx64.efi.stub
-  Versions: false
-  Enabled: true
-Kernel:
-  CommandLine: ro quiet loglevel=0
-ZBM
-step "BUILDING BOOT MENU (ZFSBOOTMENU)" c generate-zbm
-# Firmware falls back to this path even if no boot entry gets written.
-mkdir -p "$M/boot/efi/EFI/BOOT"
-cp "$M/boot/efi/EFI/zbm/vmlinuz.EFI" "$M/boot/efi/EFI/BOOT/BOOTX64.EFI"
-efibootmgr -c -d "$disk" -p 1 -L "Compuvac" -l '\EFI\zbm\vmlinuz.EFI' >>/tmp/compuvac-install.log 2>&1 ||
-	note "  (FIRMWARE ENTRY NOT WRITTEN; FALLBACK PATH WILL BE USED.)"
-step "FIRST SNAPSHOT OF BOOT ENVIRONMENT" zfs snapshot "$BE@installed"
+if [ -n "$efi" ]; then
+	step "INSTALLING BOOT LOADER" c grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+		--bootloader-id=Compuvac --removable
+	c grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Compuvac \
+		>>/tmp/compuvac-install.log 2>&1 || note "  (FIRMWARE ENTRY NOT WRITTEN; FALLBACK PATH WILL BE USED.)"
+else
+	step "INSTALLING BOOT LOADER" c grub-install --target=i386-pc "$disk"
+fi
+step "WRITING BOOT MENU" c grub-mkconfig -o /boot/grub/grub.cfg
 
-for d in run dev sys proc; do umount -R "$M/$d" 2>/dev/null; done
-umount "$M/boot/efi"
-step "SEALING CORE STORE" sh -c "zfs umount -a && zpool export $POOL"
+umount -R "$M"
 echo; compuvac-sound ready
 say "INSTALLATION COMPLETE."
 note "REMOVE THE INSTALLATION MEDIUM AND TYPE 'reboot'."

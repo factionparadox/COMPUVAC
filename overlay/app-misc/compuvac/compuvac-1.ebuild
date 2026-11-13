@@ -19,7 +19,7 @@ RDEPEND="
 	sys-block/parted
 	sys-boot/grub
 	sys-fs/dosfstools
-	sys-fs/e2fsprogs
+	sys-fs/xfsprogs
 	sys-fs/squashfs-tools
 	sys-kernel/dracut
 "

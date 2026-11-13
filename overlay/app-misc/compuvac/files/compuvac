@@ -83,13 +83,6 @@ remove|decommission)
 	say "DECOMMISSIONED." ;;
 update)
 	need_root update
-	be=$(findmnt -no SOURCE /)
-	if [ "$(findmnt -no FSTYPE /)" = zfs ]; then
-		snap="$be@before-update-$(date +%Y%m%d-%H%M)"
-		zfs snapshot "$snap" || fault "COULD NOT PRESERVE THE CURRENT SYSTEM. UPDATE ABANDONED."
-		note "CURRENT SYSTEM PRESERVED AS ${snap#*@}."
-		note "IF THE UPDATE GOES WRONG, CHOOSE IT FROM THE BOOT MENU (ESC AT START-UP, THEN CTRL+S)."
-	fi
 	say "SYNCHRONISING ARCHIVE."
 	emaint sync -a || fault "ARCHIVE UNREACHABLE."
 	say "BRINGING CORE STORE UP TO DATE."
@@ -101,13 +94,6 @@ search)
 	say "SEARCHING ARCHIVE FOR: ${*^^}"
 	emerge --search --searchdesc "$*" | grep -E '^\*|Description' |
 		sed -E 's/^\*  /\n/; s/^ +Description: +/   /' ;;
-environments)
-	[ "$(findmnt -no FSTYPE /)" = zfs ] || fault "THIS SYSTEM HAS NO BOOT ENVIRONMENTS."
-	be=$(findmnt -no SOURCE /)
-	say "BOOT ENVIRONMENTS"
-	zfs list -H -o name,used,creation -t snapshot -s creation "$be" |
-		awk -F'\t' '{sub(/.*@/,"",$1); printf "   %-34s %8s  %s\n", toupper($1), $2, $3}'
-	note "RETURN TO ONE FROM THE BOOT MENU: ESC AT START-UP, THEN CTRL+S." ;;
 status)
 	say "COMPUVAC STATUS"
 	printf '%s   PROGRAMS HELD   %s\n' "$G" "$(ls -d /var/db/pkg/*/* | wc -l)"
@@ -123,8 +109,7 @@ ${G}  compuvac install NAME...     requisition software (asks about each functio
   compuvac remove NAME...      decommission software
   compuvac update              bring everything up to date
   compuvac search WORDS        search the archive
-  compuvac status              report on the core store
-  compuvac environments        list preserved systems (taken before each update)${N}
+  compuvac status              report on the core store${N}
 TXT
 	;;
 *) fault "UNKNOWN DIRECTIVE '${1^^}'. TRY: compuvac help" ;;

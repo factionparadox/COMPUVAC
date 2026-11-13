@@ -1,7 +1,8 @@
 #!/bin/sh
 # Builds the Compuvac root filesystem into /target. Runs inside the builder
-# (see build/in-builder). Binaries from Gentoo's binhost where they match;
-# everything else is compiled straight into the root.
+# (see build/in-builder). Everything is compiled from source by default.
+# BINPKGS=1 takes Gentoo's ready-made binaries wherever they match instead
+# (much quicker; the result is the same system).
 set -eu
 T=/target
 mkdir -p /etc/portage/repos.conf
@@ -10,12 +11,18 @@ printf '[compuvac]\nlocation = /var/db/repos/compuvac\npriority = 100\n' \
 ln -snf /var/db/repos/compuvac/profiles/compuvac /etc/portage/make.profile
 cat >> /etc/portage/make.conf <<'MC'
 FEATURES="${FEATURES} -news"
-EMERGE_DEFAULT_OPTS="--getbinpkg --usepkg --binpkg-respect-use=y --binpkg-changed-deps=n --quiet-build=y"
 MC
+if [ "${BINPKGS:-0}" = 1 ]; then
+	echo 'EMERGE_DEFAULT_OPTS="--getbinpkg --usepkg --binpkg-respect-use=y --binpkg-changed-deps=n --quiet-build=y"' >> /etc/portage/make.conf
+	KERNEL=sys-kernel/gentoo-kernel-bin
+else
+	echo 'EMERGE_DEFAULT_OPTS="--quiet-build=y"' >> /etc/portage/make.conf
+	KERNEL=sys-kernel/gentoo-kernel
+fi
 
 PKGS="@system sys-apps/compuvac-rc app-misc/compuvac
-	sys-kernel/gentoo-kernel-bin sys-kernel/linux-firmware
-	sys-boot/grub sys-boot/efibootmgr sys-fs/dosfstools sys-fs/e2fsprogs
+	$KERNEL sys-kernel/linux-firmware
+	sys-boot/grub sys-boot/efibootmgr sys-fs/dosfstools sys-fs/xfsprogs
 	sys-block/parted sys-fs/squashfs-tools sys-kernel/dracut app-admin/doas net-wireless/iwd
 	app-editors/nano sys-process/htop sys-apps/locale-gen"
 [ "${NO_FIRMWARE:-}" ] && PKGS=$(echo "$PKGS" | sed 's#sys-kernel/linux-firmware##')
@@ -36,9 +43,7 @@ ln -snf ../../var/db/repos/compuvac/profiles/compuvac "$T/etc/portage/make.profi
 # Binhost trust: reuse the builder's keyring rather than bootstrapping one in $T.
 rm -rf "$T/etc/portage/gnupg"; cp -a /etc/portage/gnupg "$T/etc/portage/gnupg"
 
-emerge --root="$T" --config-root=/ --with-bdeps=n $PKGS
-
-T="$T" sh /src/build/zfs.sh
+emerge --root="$T" --config-root=/ --with-bdeps=n --update --newuse $PKGS
 
 echo ">>> COMPUVAC: configuring"
 # The installed system keeps its own copy of the overlay and the binhost settings.

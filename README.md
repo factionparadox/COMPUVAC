@@ -6,7 +6,9 @@ A terminal-only Linux in the manner of an 80s home computer. No windows, no desk
 Ly asks who you are, then one green phosphor screen owns the machine. Programs take
 the whole screen; quitting one returns you to the console.
 
-- **Base:** Gentoo, with Gentoo's binary packages wherever they fit
+- **Base:** Gentoo, built from source (`BINPKGS=1` uses Gentoo's binaries for a quicker build)
+- **Kernel:** 7.3.4 (gentoo-kernel)
+- **Filesystem:** XFS, with plain GRUB (UEFI or BIOS)
 - **Init:** sysvinit with plain rc scripts (`/etc/rc.d`, `/etc/rc.conf`). No OpenRC, no systemd.
 - **Login:** Ly
 - **Screen:** cage running cool-retro-term, full-screen, Monochrome Green

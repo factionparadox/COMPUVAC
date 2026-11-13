@@ -4,7 +4,7 @@
 set -e
 cd "$(dirname "$0")/.."
 envs=
-for v in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY NO_FIRMWARE VERSION; do
+for v in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY NO_FIRMWARE VERSION BINPKGS; do
 	eval "val=\${$v:-}"; [ -n "$val" ] && envs="$envs -e $v"
 done
 mkdir -p .build/root .build/binhost .build/out .build/binpkgs .build/distfiles
