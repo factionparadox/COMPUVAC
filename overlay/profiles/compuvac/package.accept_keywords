@@ -5,3 +5,4 @@ x11-terms/cool-retro-term ~amd64
 dev-lang/zig ~amd64
 dev-lang/zig-bin ~amd64
 app-misc/brightnessctl ~amd64
+sys-boot/zfsbootmenu ~amd64

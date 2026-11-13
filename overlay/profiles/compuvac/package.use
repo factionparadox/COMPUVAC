@@ -9,3 +9,5 @@ gui-libs/wlroots -X
 # The build and the installer run dracut themselves (it cannot run under ROOT=).
 sys-kernel/gentoo-kernel-bin -initramfs
 sys-fs/squashfs-tools zstd xz
+# ZFSBootMenu needs the EFI stub; systemd-utils is already here for udev (no systemd init).
+sys-apps/systemd-utils boot kernel-install

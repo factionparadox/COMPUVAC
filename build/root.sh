@@ -38,6 +38,8 @@ rm -rf "$T/etc/portage/gnupg"; cp -a /etc/portage/gnupg "$T/etc/portage/gnupg"
 
 emerge --root="$T" --config-root=/ --with-bdeps=n $PKGS
 
+T="$T" sh /src/build/zfs.sh
+
 echo ">>> COMPUVAC: configuring"
 # The installed system keeps its own copy of the overlay and the binhost settings.
 rm -rf "$T/var/db/repos/compuvac"; cp -a /var/db/repos/compuvac "$T/var/db/repos/compuvac"
