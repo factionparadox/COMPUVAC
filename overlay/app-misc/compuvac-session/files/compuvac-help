@@ -14,6 +14,12 @@ less -R <<'TXT'
   compuvac update           Bring the core store up to date.
   compuvac search WORDS     Search the archive.
 
+  In the program index: NETWORK joins Wi-Fi, POWER sets the power
+  profile, BLUETOOTH pairs devices, FIRMWARE updates it via LVFS,
+  FINGERPRINT enrols one (doas then accepts a fingerprint).
+  Brightness, volume and microphone keys work as marked.
+  Closing the lid, or pressing the power button, suspends.
+
   CTRL+ALT+F2    Maintenance terminal.
   logout         End the session.
 

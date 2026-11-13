@@ -99,7 +99,12 @@ status)
 	printf '%s   PROGRAMS HELD   %s\n' "$G" "$(ls -d /var/db/pkg/*/* | wc -l)"
 	printf '   CHOSEN          %s\n' "$(grep -c . /var/lib/portage/world)"
 	printf '   ARCHIVE DATE    %s\n' "$(cat /var/db/repos/gentoo/metadata/timestamp.chk 2>/dev/null || echo UNKNOWN)"
-	printf '   CORE STORE      %s free%s\n' "$(df -h / | awk 'NR==2{print $4}')" "$N" ;;
+	printf '   CORE STORE      %s free\n' "$(df -h / | awk 'NR==2{print $4}')"
+	for b in /sys/class/power_supply/BAT*; do
+		[ -r "$b/capacity" ] && printf '   BATTERY         %s%% %s\n' "$(cat "$b/capacity")" "$(tr a-z A-Z <"$b/status")"
+	done
+	p=$(powerprofilesctl get 2>/dev/null) && printf '   POWER PROFILE   %s\n' "${p^^}"
+	printf '%s' "$N" ;;
 ""|help|-h|--help)
 	cat <<TXT
 ${B}COMPUVAC SOFTWARE REQUISITION${N}

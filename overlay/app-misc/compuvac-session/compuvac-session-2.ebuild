@@ -21,6 +21,9 @@ RDEPEND="
 	sys-process/htop
 	x11-misc/ly
 	x11-terms/cool-retro-term
+	sys-apps/dbus
+	media-video/pipewire[sound-server,pipewire-alsa]
+	media-video/wireplumber
 "
 BDEPEND="media-sound/sox"
 

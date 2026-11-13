@@ -1,0 +1,8 @@
+#!/bin/bash
+# Wi-Fi: iwd joins networks and does its own addressing (see /etc/iwd/main.conf).
+. /etc/rc.d/functions
+d=/usr/libexec/iwd; [ -x $d ] || exit 0
+case "$1" in
+  start) say "WIRELESS LINK" sh -c "$d >/dev/null 2>&1 & sleep 0.3" ;;
+  stop)  say "WIRELESS LINK" sh -c 'pkill -x iwd; true' ;;
+esac

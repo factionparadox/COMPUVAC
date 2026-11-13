@@ -1,0 +1,22 @@
+#!/bin/bash
+# Join a Wi-Fi network: scan, choose with fzf, iwd asks for the passphrase.
+B=$'\e[1;32m' D=$'\e[2;32m' N=$'\e[0m'
+dev=$(for i in /sys/class/net/*; do [ -d "$i/wireless" ] && basename "$i"; done | head -1)
+[ -n "$dev" ] || { printf '%sNO WIRELESS INTERFACE FOUND.%s\n' "$B" "$N"; sleep 2; exit 1; }
+printf '%sSCANNING ON %s...%s\n' "$D" "${dev^^}" "$N"
+iwctl station "$dev" scan 2>/dev/null; sleep 3
+nets=$(iwctl station "$dev" get-networks 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' |
+	awk 'NR>4 && NF { sub(/^ *> */,""); sub(/^ +/,""); n=split($0,f,/  +/);
+	     if (n>=2) printf "%-32s %s\n", f[1], f[2] }')
+[ -n "$nets" ] || { printf '%sNO NETWORKS IN RANGE.%s\n' "$B" "$N"; sleep 2; exit 1; }
+pick=$(fzf --reverse --no-info --prompt='SELECT NETWORK > ' --color=bw --border=sharp \
+	--border-label=' NETWORKS IN RANGE ' <<<"$nets") || exit 0
+ssid=$(sed -E 's/ +(psk|open|8021x|wep)$//; s/ +$//' <<<"$pick")
+printf '%sJOINING %s%s\n' "$B" "$ssid" "$N"
+if iwctl station "$dev" connect "$ssid"; then
+	sleep 3; compuvac-sound ready
+	printf '%sLINK ESTABLISHED. %s%s\n' "$B" "$(ip -4 -br addr show "$dev" | awk '{print $3}')" "$N"
+else
+	compuvac-sound fault; printf '%sCOULD NOT JOIN %s.%s\n' "$B" "$ssid" "$N"
+fi
+sleep 2

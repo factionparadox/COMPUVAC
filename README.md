@@ -27,6 +27,25 @@ the whole screen; quitting one returns you to the console.
 Needs podman and about 15 GB free. The ISO lands in `.build/out/`.
 Write it to a stick with Rufus in DD mode, or `dd`.
 
+Everything is compiled from source, on every core. Options, set before the command:
+
+- `MARCH=native` tunes the whole system (and `CPU_FLAGS_X86`) for the CPU doing
+  the build. On the Framework Laptop 13 Pro this is the way to build:
+
+      sudo MARCH=native build/build
+
+  The result then only runs on that kind of CPU.
+- `BINPKGS=1` takes Gentoo's ready-made binaries wherever they match: much quicker.
+- `NO_FIRMWARE=1` leaves out linux-firmware (only for virtual machines).
+
+## Laptop support
+
+Chosen for the Framework Laptop 13 Pro (Intel Core Ultra Series 3), useful on any laptop:
+kernel 7.3.4, power-profiles-daemon and thermald, SOF audio firmware with PipeWire,
+iwd for Wi-Fi, bluez, fprintd (doas accepts a fingerprint), fwupd for LVFS firmware
+updates, brightness/volume/microphone keys, and suspend on lid close.
+No systemd and no elogind: each runs from a plain rc script.
+
 ## Install
 
 Boot the stick. At the console press `Ctrl+Space`, choose **install**.

@@ -1,0 +1,8 @@
+#!/bin/bash
+# Lid and power button (handlers in /etc/acpi/events).
+. /etc/rc.d/functions
+command -v acpid >/dev/null || exit 0
+case "$1" in
+  start) say "LID AND POWER SWITCH" acpid ;;
+  stop)  say "LID AND POWER SWITCH" sh -c 'pkill -x acpid; true' ;;
+esac

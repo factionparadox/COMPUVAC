@@ -3,7 +3,12 @@ files|mc|FILE STORE AND EDITOR
 edit|mcedit|TEXT EDITOR
 system|htop|PROCESS MONITOR
 mixer|alsamixer|AUDIO CHANNELS
-network|ip -c addr; read -rsn1|NETWORK STATUS
+network|compuvac-network|JOIN A WI-FI NETWORK
+links|ip -c -br addr; read -rsn1|NETWORK STATUS
+bluetooth|bluetoothctl|SHORT-RANGE LINKS (PAIRING)
+power|compuvac-power|BATTERY AND POWER PROFILE
+firmware|fwupdmgr refresh; fwupdmgr update; read -rsn1|FIRMWARE UPDATES (LVFS)
+fingerprint|fprintd-enroll; read -rsn1|ENROL A FINGERPRINT
 manual|compuvac-help|OPERATOR MANUAL
 software|compuvac|SOFTWARE REQUISITION
 shell|bash -l|RAW SHELL

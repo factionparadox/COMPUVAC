@@ -1,0 +1,13 @@
+#!/bin/sh
+# Called by acpid. Suspend on lid close or power button.
+suspend() {
+	[ -e /run/compuvac-suspending ] && exit 0   # one at a time
+	touch /run/compuvac-suspending
+	sync
+	echo mem > /sys/power/state
+	rm -f /run/compuvac-suspending
+}
+case "$1" in
+	lid)   case "$*" in *close*) suspend ;; esac ;;
+	power) suspend ;;
+esac

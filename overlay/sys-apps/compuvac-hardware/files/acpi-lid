@@ -1,0 +1,3 @@
+# Closing the lid suspends Compuvac.
+event=button/lid.*
+action=/usr/libexec/compuvac/acpi-handler lid %e

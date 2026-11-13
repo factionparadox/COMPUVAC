@@ -1,0 +1,3 @@
+# A short press of the power button suspends; hold it to force power off (firmware).
+event=button/power.*
+action=/usr/libexec/compuvac/acpi-handler power %e

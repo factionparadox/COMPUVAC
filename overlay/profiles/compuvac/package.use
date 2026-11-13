@@ -10,3 +10,5 @@ gui-libs/wlroots -X
 sys-kernel/gentoo-kernel-bin -initramfs
 sys-kernel/gentoo-kernel -initramfs
 sys-fs/squashfs-tools zstd xz
+# Audio for the session (no systemd user services; the session starts PipeWire itself).
+media-video/pipewire sound-server pipewire-alsa

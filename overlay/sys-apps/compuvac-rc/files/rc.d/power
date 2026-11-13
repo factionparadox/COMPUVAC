@@ -1,0 +1,16 @@
+#!/bin/bash
+# Power: thermald keeps the CPU within its thermal limits using the firmware's own
+# tables (--adaptive); power-profiles-daemon switches between power-saver,
+# balanced and performance. Needs the message bus.
+. /etc/rc.d/functions
+ppd=/usr/libexec/power-profiles-daemon
+case "$1" in
+  start)
+	command -v thermald >/dev/null && say "THERMAL REGULATION" thermald --dbus-enable --adaptive
+	[ -x $ppd ] && say "POWER PROFILES" sh -c "$ppd >/dev/null 2>&1 &"
+	;;
+  stop)
+	say "POWER PROFILES" sh -c 'pkill -f power-profiles-daemon; true'
+	say "THERMAL REGULATION" sh -c 'pkill -x thermald; true'
+	;;
+esac

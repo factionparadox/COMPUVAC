@@ -1,0 +1,12 @@
+#!/bin/bash
+# Choose a power profile (power-profiles-daemon) and show the battery.
+B=$'\e[1;32m' G=$'\e[32m' N=$'\e[0m'
+for b in /sys/class/power_supply/BAT*; do
+	[ -d "$b" ] && printf '%sBATTERY %s%%  %s%s\n' "$G" "$(cat "$b/capacity")" "$(tr a-z A-Z <"$b/status")" "$N"
+done
+cur=$(powerprofilesctl get 2>/dev/null) || { printf '%sPOWER PROFILES UNAVAILABLE.%s\n' "$B" "$N"; sleep 2; exit 1; }
+pick=$(powerprofilesctl list 2>/dev/null | sed -n 's/^[ *]*\([a-z-]*\):$/\1/p' |
+	fzf --reverse --no-info --prompt="PROFILE (NOW ${cur^^}) > " --color=bw --border=sharp \
+	--border-label=' POWER PROFILE ') || exit 0
+powerprofilesctl set "$pick" && printf '%sPROFILE SET: %s%s\n' "$B" "${pick^^}" "$N"
+sleep 1

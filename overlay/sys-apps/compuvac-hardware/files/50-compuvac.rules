@@ -1,0 +1,14 @@
+// Compuvac runs no elogind, so polkit cannot see who is at the keyboard.
+// Operators (the wheel group) may change power profiles, update firmware,
+// enrol fingerprints and pair Bluetooth devices without a password prompt.
+polkit.addRule(function(action, subject) {
+	if (!subject.isInGroup("wheel")) return;
+	var id = action.id;
+	if (id.indexOf("net.hadess.PowerProfiles.") === 0 ||
+	    id.indexOf("org.freedesktop.UPower.PowerProfiles.") === 0 ||
+	    id.indexOf("org.freedesktop.fwupd.") === 0 ||
+	    id.indexOf("net.reactivated.fprint.") === 0 ||
+	    id.indexOf("org.bluez.") === 0) {
+		return polkit.Result.YES;
+	}
+});

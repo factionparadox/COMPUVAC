@@ -1,0 +1,8 @@
+#!/bin/bash
+# Bluetooth: bluez's daemon. Pair from the program index (BLUETOOTH) or bluetoothctl.
+. /etc/rc.d/functions
+d=/usr/libexec/bluetooth/bluetoothd; [ -x $d ] || exit 0
+case "$1" in
+  start) say "SHORT-RANGE LINK" sh -c "$d >/dev/null 2>&1 &" ;;
+  stop)  say "SHORT-RANGE LINK" sh -c 'pkill -x bluetoothd; true' ;;
+esac

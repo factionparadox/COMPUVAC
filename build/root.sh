@@ -12,6 +12,23 @@ ln -snf /var/db/repos/compuvac/profiles/compuvac /etc/portage/make.profile
 cat >> /etc/portage/make.conf <<'MC'
 FEATURES="${FEATURES} -news"
 MC
+# Every core compiles. MARCH tunes for one CPU: MARCH=native when building on
+# the machine Compuvac will run on (e.g. the Framework), which also sets
+# CPU_FLAGS_X86 to match; the result then only runs on that kind of CPU.
+J=$(nproc)
+echo "MAKEOPTS=\"-j$J -l$J\"" >> /etc/portage/make.conf
+if [ -n "${MARCH:-}" ]; then
+	F="-O2 -pipe -march=$MARCH"
+	printf 'COMMON_FLAGS="%s"\nCFLAGS="%s"\nCXXFLAGS="%s"\nFCFLAGS="%s"\nFFLAGS="%s"\n' \
+		"$F" "$F" "$F" "$F" "$F" >> /etc/portage/make.conf
+	if [ "$MARCH" = native ]; then
+		emerge --getbinpkg --usepkg --quiet --oneshot --noreplace app-portage/cpuid2cpuflags >/dev/null
+		echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags
+		mkdir -p "$T/etc/portage/package.use"
+		cp /etc/portage/package.use/00cpu-flags "$T/etc/portage/package.use/"
+	fi
+fi
+echo ">>> COMPUVAC: $J jobs, ${MARCH:+-march=$MARCH, }$([ "${BINPKGS:-0}" = 1 ] && echo 'Gentoo binaries where they match' || echo 'everything from source')"
 if [ "${BINPKGS:-0}" = 1 ]; then
 	echo 'EMERGE_DEFAULT_OPTS="--getbinpkg --usepkg --binpkg-respect-use=y --binpkg-changed-deps=n --quiet-build=y"' >> /etc/portage/make.conf
 	KERNEL=sys-kernel/gentoo-kernel-bin
@@ -49,7 +66,7 @@ echo ">>> COMPUVAC: configuring"
 # The installed system keeps its own copy of the overlay and the binhost settings.
 rm -rf "$T/var/db/repos/compuvac"; cp -a /var/db/repos/compuvac "$T/var/db/repos/compuvac"
 cp -a /etc/portage/binrepos.conf "$T/etc/portage/"
-sed -i 's/^MAKEOPTS=.*/MAKEOPTS="-j4"/; /ipc-sandbox/d' "$T/etc/portage/make.conf"
+sed -i '/ipc-sandbox/d' "$T/etc/portage/make.conf"
 cat > "$T/etc/locale.gen" <<'L'
 en_GB.UTF-8 UTF-8
 en_US.UTF-8 UTF-8

@@ -2,12 +2,26 @@
 [ -f /etc/bash/bashrc ] && . /etc/bash/bashrc
 export EDITOR=mcedit VISUAL=mcedit PAGER=less MC_SKIN=compuvac
 
+compuvac_power_line() {
+	local b cap st prof
+	for b in /sys/class/power_supply/BAT*; do
+		[ -r "$b/capacity" ] || continue
+		cap=$(cat "$b/capacity"); st=$(cat "$b/status")
+		prof=$(powerprofilesctl get 2>/dev/null)
+		printf '  POWER     %s%%  %s%s\n' "$cap" "${st^^}" "${prof:+  ·  PROFILE ${prof^^}}"
+		return
+	done
+	return 0
+}
+
 compuvac_banner() {
 	clear
 	printf '\n  COMPUVAC  ·  SPACE SECURITY SERVICE MASTER COMPUTER\n'
 	printf '  ─────────────────────────────────────────────────\n'
 	printf '  OPERATOR  %s        TERMINAL  %s\n' "${USER^^}" "$(tty | sed 's#/dev/##')"
-	printf '  CORE      %s\n\n' "$(uname -r)"
+	printf '  CORE      %s\n' "$(uname -r)"
+	compuvac_power_line
+	echo
 	printf '  CTRL+SPACE  PROGRAMS      F2  FILES      F10  HELP\n\n'
 	if [ -f /etc/compuvac/live ]; then printf '  LIVE SYSTEM. TO INSTALL: CTRL+SPACE, THEN "INSTALL".\n\n'; fi
 }

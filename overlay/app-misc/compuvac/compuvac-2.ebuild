@@ -15,6 +15,7 @@ RDEPEND="
 	app-portage/gentoolkit
 	app-misc/compuvac-session
 	sys-apps/portage
+	sys-apps/compuvac-hardware
 	app-admin/doas
 	sys-block/parted
 	sys-boot/grub

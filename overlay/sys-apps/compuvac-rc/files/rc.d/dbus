@@ -1,0 +1,8 @@
+#!/bin/bash
+# The system message bus: power profiles, firmware, fingerprints and Bluetooth talk over it.
+. /etc/rc.d/functions
+command -v dbus-daemon >/dev/null || exit 0
+case "$1" in
+  start) say "MESSAGE BUS" sh -c 'mkdir -p /run/dbus && dbus-uuidgen --ensure && dbus-daemon --system' ;;
+  stop)  say "MESSAGE BUS" sh -c '[ -f /run/dbus.pid ] && kill "$(cat /run/dbus.pid)"; rm -f /run/dbus.pid; true' ;;
+esac

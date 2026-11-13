@@ -17,6 +17,7 @@ RDEPEND="
 	sys-auth/seatd[server]
 	media-sound/alsa-utils
 	net-misc/dhcpcd
+	sys-apps/dbus
 	virtual/udev
 "
 

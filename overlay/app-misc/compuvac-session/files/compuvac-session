@@ -13,9 +13,22 @@ export QT_QPA_PLATFORM=wayland
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1   # no title bars: one program, whole screen
 export MC_SKIN=compuvac
 export COMPUVAC=1
+
+if [ "${1:-}" != inside ]; then
+	# A private session bus: PipeWire's session manager needs one.
+	exec dbus-run-session -- "$0" inside
+fi
+
+# Sound (PipeWire, with no systemd user services to start it) and the
+# function keys run alongside the screen and stop with it.
+pipewire & sleep 0.5
+wireplumber &
+pipewire-pulse &
+compuvac-keys &
 compuvac-sound boot &
 # cool-retro-term only honours -e for the program, and -e must come last.
 # It also never starts a program given with no arguments (an empty argument
 # list breaks under Qt 6), so the console gets one it ignores.
-exec cage -s -d -- cool-retro-term --fullscreen --profile "Monochrome Green" \
+cage -s -d -- cool-retro-term --fullscreen --profile "Monochrome Green" \
 	-e /usr/bin/compuvac-console operator
+kill $(jobs -p) 2>/dev/null

@@ -1,0 +1,42 @@
+#!/usr/bin/python3
+# Compuvac's function keys: brightness, volume and microphone mute.
+# Runs inside the operator's session (members of "input" may read key events),
+# so volume goes straight to the session's PipeWire.
+import asyncio, subprocess, evdev
+from evdev import ecodes as e
+
+ACTIONS = {
+    e.KEY_BRIGHTNESSUP:   ["brightnessctl", "-q", "set", "5%+"],
+    e.KEY_BRIGHTNESSDOWN: ["brightnessctl", "-q", "-n", "1", "set", "5%-"],
+    e.KEY_VOLUMEUP:       ["wpctl", "set-volume", "-l", "1.0", "@DEFAULT_AUDIO_SINK@", "5%+"],
+    e.KEY_VOLUMEDOWN:     ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%-"],
+    e.KEY_MUTE:           ["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"],
+    e.KEY_MICMUTE:        ["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"],
+}
+
+async def watch(dev):
+    try:
+        async for ev in dev.async_read_loop():
+            # key down (1) and auto-repeat (2), so holding a key keeps going
+            if ev.type == e.EV_KEY and ev.value in (1, 2) and ev.code in ACTIONS:
+                subprocess.run(ACTIONS[ev.code], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        pass  # device went away (unplugged, or suspend)
+
+async def main():
+    watched = set()
+    while True:
+        for path in evdev.list_devices():
+            if path in watched:
+                continue
+            try:
+                dev = evdev.InputDevice(path)
+            except OSError:
+                continue
+            keys = dev.capabilities().get(e.EV_KEY, [])
+            if any(k in ACTIONS for k in keys):
+                watched.add(path)
+                asyncio.ensure_future(watch(dev))
+        await asyncio.sleep(5)   # pick up keyboards plugged in later
+
+asyncio.run(main())
