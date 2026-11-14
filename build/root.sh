@@ -112,6 +112,7 @@ getent group seat >/dev/null || groupadd -r seat
 if [ "$(id -u operator 2>/dev/null)" != "" ] && [ "$(id -u operator)" -lt 1000 ]; then
 	userdel operator
 fi
+userdel -r agent 2>/dev/null || true   # the live user of earlier builds
 id operator >/dev/null 2>&1 || useradd -m -G wheel,audio,video,input,seat -s /bin/bash operator
 passwd -d operator >/dev/null
 passwd -l root >/dev/null
