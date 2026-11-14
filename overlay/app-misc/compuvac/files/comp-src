@@ -34,9 +34,14 @@ sync_compuvac() {  # Compuvac's own packages come from its GitHub repository.
 		tar -xz -C "$t" --strip-components=1 --wildcards '*/overlay' 2>/dev/null &&
 		[ -f "$t/overlay/profiles/repo_name" ]; then
 		rm -rf /var/db/repos/compuvac.old
-		mv /var/db/repos/compuvac /var/db/repos/compuvac.old &&
-			mv "$t/overlay" /var/db/repos/compuvac && rm -rf /var/db/repos/compuvac.old
-		note "COMPUVAC'S OWN PACKAGES UPDATED."
+		if mv /var/db/repos/compuvac /var/db/repos/compuvac.old &&
+			mv "$t/overlay" /var/db/repos/compuvac; then
+			rm -rf /var/db/repos/compuvac.old
+			note "COMPUVAC'S OWN PACKAGES UPDATED (${ref:0:7})."
+		else
+			[ -d /var/db/repos/compuvac ] || mv /var/db/repos/compuvac.old /var/db/repos/compuvac
+			note "COULD NOT REPLACE COMPUVAC'S PACKAGES; KEEPING THEM AS THEY ARE."
+		fi
 	else
 		note "COULD NOT REACH COMPUVAC'S REPOSITORY; KEEPING ITS PACKAGES AS THEY ARE."
 	fi
