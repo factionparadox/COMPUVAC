@@ -23,6 +23,12 @@ DEPEND="
 RDEPEND="${DEPEND}
 	dev-qt/qtwayland:6
 "
+PATCHES=(
+	# Compuvac: animate only while an effect moves; Compuvac and Compuvac Calm
+	# profiles (green phosphor, Terminus)
+	"${FILESDIR}"/${PN}-2.0.0_beta2-compuvac.patch
+)
+
 BDEPEND="dev-qt/qtshadertools:6"
 
 src_configure() {

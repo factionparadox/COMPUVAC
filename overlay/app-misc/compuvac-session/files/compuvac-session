@@ -26,9 +26,22 @@ wireplumber &
 pipewire-pulse &
 compuvac-keys &
 compuvac-sound boot &
+# On battery the screen keeps its look but holds still (no flicker, jitter,
+# noise or burn-in), so it is only redrawn when something changes.
+# On mains power, or on a machine with no battery, the full effects.
+profile="Compuvac"
+for ps in /sys/class/power_supply/*; do
+	[ "$(cat "$ps/type" 2>/dev/null)" = Battery ] || continue
+	profile="Compuvac Calm"
+	for ac in /sys/class/power_supply/*; do
+		case "$(cat "$ac/type" 2>/dev/null)" in Mains|USB) ;; *) continue ;; esac   # USB-C chargers report USB
+		[ "$(cat "$ac/online" 2>/dev/null)" = 1 ] && profile="Compuvac"
+	done
+	break
+done
 # cool-retro-term only honours -e for the program, and -e must come last.
 # It also never starts a program given with no arguments (an empty argument
 # list breaks under Qt 6), so the console gets one it ignores.
-cage -s -d -- cool-retro-term --fullscreen --profile "Monochrome Green" \
+cage -s -d -- cool-retro-term --fullscreen --profile "$profile" \
 	-e /usr/bin/compuvac-console operator
 kill $(jobs -p) 2>/dev/null
