@@ -105,10 +105,15 @@ env-update >/dev/null
 [ -x /usr/bin/gio-querymodules ] && gio-querymodules /usr/lib64/gio/modules
 [ -x /usr/bin/gdk-pixbuf-query-loaders ] && gdk-pixbuf-query-loaders --update-cache
 command -v update-mime-database >/dev/null && update-mime-database /usr/share/mime
-# The live user is "agent" (Gentoo already has a system "operator"). Password is set by the installer; the live system logs in alone.
+# The live user is "operator". Gentoo ships a legacy system account of that name
+# (no home, no shell) that nothing here uses; it is retired to free the name.
+# The installer sets the real operator's name and password; the live system logs in alone.
 getent group seat >/dev/null || groupadd -r seat
-id agent >/dev/null 2>&1 || useradd -m -G wheel,audio,video,input,seat -s /bin/bash agent
-passwd -d agent >/dev/null
+if [ "$(id -u operator 2>/dev/null)" != "" ] && [ "$(id -u operator)" -lt 1000 ]; then
+	userdel operator
+fi
+id operator >/dev/null 2>&1 || useradd -m -G wheel,audio,video,input,seat -s /bin/bash operator
+passwd -d operator >/dev/null
 passwd -l root >/dev/null
 printf 'permit persist :wheel\n' > /etc/doas.conf; chmod 600 /etc/doas.conf
 printf '%s\n' 'tmpfs /tmp tmpfs nosuid,nodev 0 0' > /etc/fstab

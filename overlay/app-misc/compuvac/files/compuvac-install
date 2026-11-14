@@ -5,7 +5,9 @@ B=$'\e[1;32m' G=$'\e[32m' D=$'\e[2;32m' N=$'\e[0m'
 say()   { printf '%s%s%s\n' "$B" "$*" "$N"; }
 note()  { printf '%s%s%s\n' "$D" "$*" "$N"; }
 fault() { compuvac-sound fault; printf '\n%sFAULT: %s%s\n' "$B" "$*" "$N" >&2; exit 1; }
-ask()   { local a; read -rp "${G}$1 ${N}" a </dev/tty; printf '%s' "$a"; }
+# Typing must always be visible: put the terminal back to normal before each question.
+sane()  { stty sane </dev/tty 2>/dev/null || true; }
+ask()   { local a; sane; read -rp "${G}$1 ${N}" a </dev/tty; printf '%s' "$a"; }
 step()  { printf '%s  %-44s%s' "$G" "$1" "$N"; shift; if "$@" >>/tmp/compuvac-install.log 2>&1; then printf '%sOK%s\n' "$B" "$N"; else printf '%sFAULT%s\n' "$B" "$N"; fault "SEE /tmp/compuvac-install.log"; fi; }
 M=/mnt/compuvac
 SQUASH=/run/initramfs/live/LiveOS/squashfs.img
@@ -21,29 +23,39 @@ note "EVERYTHING ON THAT DISK WILL BE DESTROYED."
 echo
 
 # --- target disk (everything on it goes)
-live=$(lsblk -no PKNAME "$(findmnt -no SOURCE /run/initramfs/live 2>/dev/null)" 2>/dev/null || true)
-disk=$(lsblk -dpno NAME,SIZE,MODEL -e 7,11 | grep -v "^/dev/${live:-none} " |
-	fzf --reverse --no-info --prompt='SELECT DISK > ' --color=bw --border=sharp \
-	    --border-label=' AVAILABLE DISKS ' | awk '{print $1}') || true
-[ -n "$disk" ] || fault "NO DISK SELECTED. PROCEDURE ABANDONED."
+# The stick Compuvac is running from is never offered.
+live=$(lsblk -no PKNAME "$(findmnt -no SOURCE /run/initramfs/live 2>/dev/null)" 2>/dev/null | head -1 | tr -d ' ' || true)
+mapfile -t disks < <(lsblk -dpno NAME,SIZE,MODEL -e 7,11 | grep -v "^/dev/${live:-none} ")
+[ ${#disks[@]} -gt 0 ] || fault "NO DISKS FOUND."
+say "AVAILABLE DISKS"
+for i in "${!disks[@]}"; do
+	printf '%s   %d   %s%s\n' "$G" $((i+1)) "${disks[$i]}" "$N"
+done
+echo
+n=$(ask "DISK NUMBER:")
+[[ $n =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le ${#disks[@]} ] ||
+	fault "NO SUCH DISK. PROCEDURE ABANDONED."
+disk=$(awk '{print $1}' <<<"${disks[$((n-1))]}")
 echo; lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINTS "$disk" | sed 's/^/   /'; echo
-say "ALL DATA ON $disk WILL BE DESTROYED."
-[ "$(ask "TYPE THE DISK NAME ($(basename "$disk")) TO CONFIRM:")" = "$(basename "$disk")" ] ||
-	fault "CONFIRMATION INCORRECT. PROCEDURE ABANDONED."
+say "ALL DATA ON ${disks[$((n-1))]} WILL BE DESTROYED."
+[[ $(ask "PROCEED? [y/N]") == [yY]* ]] || fault "PROCEDURE ABANDONED. NOTHING WAS CHANGED."
 
 # --- operator
 echo
-user=$(ask "OPERATOR DESIGNATION (USERNAME):")
+user=$(ask "OPERATOR DESIGNATION [operator]:"); user=${user:-operator}
 [[ $user =~ ^[a-z_][a-z0-9_-]{0,30}$ ]] || fault "DESIGNATION NOT ACCEPTABLE."
 while :; do
-	read -rsp "${G}OPERATOR PASSWORD: ${N}" p1 </dev/tty; echo
-	read -rsp "${G}REPEAT PASSWORD:   ${N}" p2 </dev/tty; echo
+	sane; read -rsp "${G}OPERATOR PASSWORD (HIDDEN AS YOU TYPE): ${N}" p1 </dev/tty; echo
+	read -rsp "${G}REPEAT PASSWORD:                    ${N}" p2 </dev/tty; echo
 	[ -n "$p1" ] && [ "$p1" = "$p2" ] && break
 	note "PASSWORDS DO NOT MATCH. AGAIN."
 done
 host=$(ask "MACHINE DESIGNATION [compuvac]:"); host=${host:-compuvac}
-tz=$( (cd /usr/share/zoneinfo && find . -type f -path './[A-Z]*' | sed 's#^\./##' | sort) |
-	fzf --reverse --no-info --prompt='TIME ZONE > ' --query='Europe/London' --select-1 --color=bw) || tz=UTC
+while :; do
+	tz=$(ask "TIME ZONE [Europe/London]:"); tz=${tz:-Europe/London}
+	[ -f "/usr/share/zoneinfo/$tz" ] && break
+	note "UNKNOWN TIME ZONE. FORM IS REGION/CITY, E.G. Europe/London OR America/New_York."
+done
 keymap=$(ask "KEYBOARD [uk]:"); keymap=${keymap:-uk}
 
 echo; say "COMMENCING."; compuvac-sound launch
@@ -82,7 +94,7 @@ for d in proc sys dev run; do mount --rbind /$d "$M/$d"; mount --make-rslave "$M
 
 c() { chroot "$M" "$@"; }
 step "ENROLLING OPERATOR ${user^^}" c sh -c "
-	userdel -r agent 2>/dev/null; true
+	userdel -r agent 2>/dev/null; userdel -r operator 2>/dev/null; true
 	useradd -m -G wheel,audio,video,input,seat -s /bin/bash '$user'"
 printf '%s:%s\n' "$user" "$p1" | step "SETTING CREDENTIALS" c chpasswd
 unset p1 p2

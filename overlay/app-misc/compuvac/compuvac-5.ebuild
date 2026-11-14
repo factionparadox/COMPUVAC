@@ -13,6 +13,8 @@ KEYWORDS="amd64"
 
 RDEPEND="
 	app-portage/gentoolkit
+	app-portage/portage-utils
+	app-eselect/eselect-repository
 	app-misc/compuvac-session
 	sys-apps/portage
 	sys-apps/compuvac-hardware

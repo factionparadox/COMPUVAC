@@ -47,10 +47,10 @@ session    include      login
 PAM
 touch "$T/etc/compuvac/live"
 # The live user may act as root without a password (it has none to give).
-printf 'permit nopass agent\npermit persist :wheel\n' > "$T/etc/doas.conf"; chmod 600 "$T/etc/doas.conf"
+printf 'permit nopass operator\npermit persist :wheel\n' > "$T/etc/doas.conf"; chmod 600 "$T/etc/doas.conf"
 printf 'install|compuvac-install|COMMIT COMPUVAC TO DISK\n' > "$T/etc/compuvac/programs"
 cfg="$T/etc/ly/config.ini"
-sed -i 's|^auto_login_user *=.*|auto_login_user = agent|; s|^auto_login_session *=.*|auto_login_session = Compuvac|' "$cfg"
+sed -i 's|^auto_login_user *=.*|auto_login_user = operator|; s|^auto_login_session *=.*|auto_login_session = Compuvac|' "$cfg"
 
 echo ">>> COMPUVAC: squashing root"
 rm -rf "$W"; mkdir -p "$W/LiveOS" "$W/boot/grub"

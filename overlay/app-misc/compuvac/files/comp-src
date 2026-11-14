@@ -99,7 +99,7 @@ update)
 	need_root update
 	need_archive
 	say "SYNCHRONISING ARCHIVE."
-	emaint sync -r gentoo || fault "ARCHIVE UNREACHABLE."
+	emaint sync -a || fault "ARCHIVE UNREACHABLE."
 	say "BRINGING CORE STORE UP TO DATE."
 	"${EMERGE[@]}" --update --deep --newuse @world || fault "UPDATE INCOMPLETE."
 	emerge --depclean --ask=n
@@ -158,6 +158,68 @@ rebuild)
 	compuvac-sound ready
 	say "REBUILD COMPLETE. COMPUVAC IS NOW ENTIRELY ITS OWN WORK."
 	note "RESTART TO USE THE NEW KERNEL." ;;
+sync)
+	need_root sync
+	need_archive
+	say "SYNCHRONISING ARCHIVE."
+	emaint sync -a || fault "ARCHIVE UNREACHABLE."
+	say "ARCHIVE CURRENT AS OF $(cat /var/db/repos/gentoo/metadata/timestamp.chk)." ;;
+owner|belongs)
+	shift; [ $# -ge 1 ] || fault "SPECIFY A FILE."
+	for f; do
+		[ -e "$f" ] || command -v "$f" >/dev/null && f=$( [ -e "$f" ] && readlink -f "$f" || command -v "$f")
+		o=$(qfile -qC "$f" 2>/dev/null | sort -u)
+		[ -n "$o" ] && say "${f}: $(tr a-z A-Z <<<"$o" | tr '\n' ' ')" || say "${f}: NOT HELD BY ANY PROGRAM."
+	done ;;
+list)
+	if [ "${2:-}" = all ]; then
+		say "EVERY PROGRAM IN CORE STORE"
+		qlist -ICv | sed 's/^/   /'
+	else
+		say "PROGRAMS YOU REQUISITIONED"
+		sed 's/^/   /' /var/lib/portage/world
+		note "(EVERYTHING, DEPENDENCIES INCLUDED: comp-src list all)"
+	fi ;;
+info|describe)
+	shift; need_archive >/dev/null
+	atom=$(resolve "$1") || exit 1
+	best=$(portageq best_visible / ebuild "$atom")
+	have=$(portageq best_version / "$atom")
+	{ read -r desc; read -r home; } < <(portageq metadata / ebuild "$best" DESCRIPTION HOMEPAGE)
+	say "${atom^^}"
+	printf '%s   %s\n' "$G" "$desc"
+	printf '   HOME        %s\n' "$home"
+	printf '   AVAILABLE   %s\n' "${best#"$atom"-}"
+	printf '   HELD        %s\n' "${have:+${have#"$atom"-}}${have:-NO}"
+	f="$USEDIR/compuvac-${atom//\//_}"
+	[ -f "$f" ] && printf '   FUNCTIONS   %s\n' "$(grep -v '^#' "$f" | cut -d' ' -f2-)"
+	printf '%s' "$N" ;;
+repos)
+	say "ARCHIVES CONSULTED"
+	eselect repository list -i 2>/dev/null | sed 1d | sed 's/^/   /'
+	note "MORE: eselect repository list (ADD ONE WITH comp-src add-repo NAME)" ;;
+add-repo)
+	shift; need_root add-repo "$@"; [ $# -ge 1 ] || fault "SPECIFY AN ARCHIVE."
+	need_archive
+	for r; do
+		say "ADDING ARCHIVE: ${r^^}"
+		eselect repository enable "$r" >/dev/null && emaint sync -r "$r" || fault "COULD NOT ADD ${r^^}."
+	done
+	say "ARCHIVE ADDED. ITS SOFTWARE CAN NOW BE REQUISITIONED." ;;
+drop-repo)
+	shift; need_root drop-repo "$@"; [ $# -ge 1 ] || fault "SPECIFY AN ARCHIVE."
+	for r; do
+		[ "$r" = gentoo ] || [ "$r" = compuvac ] && fault "${r^^} CANNOT BE DROPPED: COMPUVAC DEPENDS ON IT."
+		eselect repository remove -f "$r" >/dev/null || fault "COULD NOT DROP ${r^^}."
+		say "ARCHIVE ${r^^} DROPPED."
+	done ;;
+clean)
+	need_root clean
+	say "REMOVING WHAT NOTHING NEEDS."
+	emerge --depclean --ask=n
+	say "DISCARDING OLD SOURCE ARCHIVES."
+	eclean-dist --deep --quiet 2>/dev/null; true
+	say "CORE STORE TIDY. $(df -h / | awk 'NR==2{print $4}') FREE." ;;
 search)
 	shift; [ $# -ge 1 ] || fault "SPECIFY SEARCH TERMS."
 	say "SEARCHING ARCHIVE FOR: ${*^^}"
@@ -191,8 +253,18 @@ ${G}  comp-src install NAME...     compile and install (asks about each function
   comp-src install -q NAME...  the same, taking the recommended functions
   comp-src reconsider NAME     answer the questions again and recompile
   comp-src remove NAME...      decommission software
-  comp-src update              bring everything up to date
-  comp-src search WORDS        search the archive
+  comp-src search WORDS        search the archive (names and descriptions)
+  comp-src info NAME           what it is, versions, the functions you chose
+  comp-src owner FILE          which program a file belongs to
+  comp-src list [all]          what you requisitioned (all: everything held)
+
+  comp-src sync                fetch the latest archive
+  comp-src update              sync, then bring everything up to date
+  comp-src clean               remove what nothing needs, old source archives
+
+  comp-src repos               archives consulted
+  comp-src add-repo NAME       consult another archive (e.g. guru)
+  comp-src drop-repo NAME      stop consulting one
 
   The machine itself: compuvac tune, compuvac rebuild, compuvac status.${N}
 TXT

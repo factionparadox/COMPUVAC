@@ -18,7 +18,8 @@ compuvac_banner() {
 	clear
 	printf '\n  COMPUVAC  ·  SPACE SECURITY SERVICE MASTER COMPUTER\n'
 	printf '  ─────────────────────────────────────────────────\n'
-	printf '  OPERATOR  %s        TERMINAL  %s\n' "${USER^^}" "$(tty | sed 's#/dev/##')"
+	if [ "$USER" = operator ]; then who='ON DUTY'; else who=${USER^^}; fi
+	printf '  OPERATOR  %s        TERMINAL  %s\n' "$who" "$(tty | sed 's#/dev/##')"
 	printf '  CORE      %s\n' "$(uname -r)"
 	compuvac_power_line
 	echo
