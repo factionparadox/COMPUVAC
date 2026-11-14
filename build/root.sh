@@ -5,6 +5,13 @@
 # (much quicker; the result is the same system).
 set -eu
 T=/target
+# Some packages, when installed into $T, run one of $T's own programs inside this
+# builder to index their modules (glib's gio-querymodules, gdk-pixbuf's loader
+# query). Those programs need glib here too, so the builder gets it first, as a
+# binary from the stock profile: the builder never ships. The indexes are then
+# regenerated properly inside $T after everything is installed.
+emerge --getbinpkg --usepkg --quiet --oneshot --noreplace dev-libs/glib
+
 mkdir -p /etc/portage/repos.conf
 printf '[compuvac]\nlocation = /var/db/repos/compuvac\npriority = 100\n' \
 	> /etc/portage/repos.conf/compuvac.conf
@@ -94,6 +101,10 @@ for d in proc sys dev; do mkdir -p "$T/$d"; mount --rbind /$d "$T/$d"; done
 chroot "$T" /bin/sh -eu <<'CH'
 locale-gen -q
 env-update >/dev/null
+# Module indexes, built by this system's own tools (see the note at the top).
+[ -x /usr/bin/gio-querymodules ] && gio-querymodules /usr/lib64/gio/modules
+[ -x /usr/bin/gdk-pixbuf-query-loaders ] && gdk-pixbuf-query-loaders --update-cache
+command -v update-mime-database >/dev/null && update-mime-database /usr/share/mime
 # The live user is "agent" (Gentoo already has a system "operator"). Password is set by the installer; the live system logs in alone.
 getent group seat >/dev/null || groupadd -r seat
 id agent >/dev/null 2>&1 || useradd -m -G wheel,audio,video,input,seat -s /bin/bash agent
