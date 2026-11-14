@@ -17,7 +17,7 @@ the whole screen; quitting one returns you to the console.
 - **Screen:** cage running cool-retro-term, full-screen, Monochrome Green
 - **Files and editing:** Midnight Commander
 - **Programs:** `Ctrl+Space`
-- **Software:** `compuvac install NAME` asks about each optional function before building
+- **Software:** `comp-src install NAME` (compile source) asks about each optional function, then compiles it
 - **Sounds:** synthesised at build time with sox
 
 ## Build
@@ -41,7 +41,7 @@ Everything is compiled from source, on every core. Options, set before the comma
 ## Compiling Compuvac on itself
 
 However the ISO was built, the installed Compuvac compiles its own software:
-`compuvac install` builds from source, never from binaries. To make the whole
+`comp-src install` compiles from source, never takes binaries. To make the whole
 machine its own work, on the machine itself:
 
     compuvac tune       # -march=native, CPU_FLAGS_X86 and job count for this processor

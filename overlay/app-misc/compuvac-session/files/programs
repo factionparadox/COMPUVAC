@@ -10,5 +10,5 @@ power|compuvac-power|BATTERY AND POWER PROFILE
 firmware|fwupdmgr refresh; fwupdmgr update; read -rsn1|FIRMWARE UPDATES (LVFS)
 fingerprint|fprintd-enroll; read -rsn1|ENROL A FINGERPRINT
 manual|compuvac-help|OPERATOR MANUAL
-software|compuvac|SOFTWARE REQUISITION
+software|comp-src help; read -rsn1|SOFTWARE REQUISITION (COMP-SRC)
 shell|bash -l|RAW SHELL

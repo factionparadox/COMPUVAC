@@ -3,7 +3,7 @@
 
 EAPI=8
 
-DESCRIPTION="Compuvac software requisition: Portage, asked politely"
+DESCRIPTION="comp-src (software requisition) and compuvac (tune, rebuild, status)"
 HOMEPAGE="https://example.invalid/compuvac"
 S="${WORKDIR}"
 
@@ -27,5 +27,7 @@ RDEPEND="
 "
 
 src_install() {
-	dobin "${FILESDIR}"/compuvac{,-install}
+	dobin "${FILESDIR}"/comp-src "${FILESDIR}"/compuvac-install
+	# One program, two names: comp-src for software, compuvac for the machine.
+	dosym comp-src /usr/bin/compuvac
 }

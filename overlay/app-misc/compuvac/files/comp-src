@@ -1,5 +1,7 @@
 #!/bin/bash
-# compuvac — software requisition. Speaks for Portage.
+# comp-src — compile source: Compuvac's software requisition, speaking for Portage.
+# Installed also as 'compuvac', for the machine itself (tune, rebuild, status).
+# Either name runs any directive; each shows its own help.
 set -o pipefail
 G=$'\e[32m' B=$'\e[1;32m' D=$'\e[2;32m' N=$'\e[0m'
 say()   { printf '%s%s%s\n' "$B" "$*" "$N"; }
@@ -8,6 +10,7 @@ fault() { compuvac-sound fault; printf '%sFAULT: %s%s\n' "$B" "$*" "$N" >&2; exi
 # Compuvac compiles its own software: no binary packages.
 EMERGE=(emerge)
 USEDIR=/etc/portage/package.use
+ME=$(basename "$0")
 
 need_root() {
 	[ "$EUID" = 0 ] && return
@@ -56,7 +59,7 @@ interrogate() {  # ask about each USE flag of $1, write package.use
 		esac
 	done
 	mkdir -p "$USEDIR"
-	printf '# Written by compuvac. Change with: compuvac reconsider %s\n%s %s\n' \
+	printf '# Written by comp-src. Change with: comp-src reconsider %s\n%s %s\n' \
 		"$atom" "$atom" "${flags[*]}" > "$file"
 	echo; note "RECORDED IN ${file}."
 }
@@ -172,18 +175,27 @@ status)
 	p=$(powerprofilesctl get 2>/dev/null) && printf '   POWER PROFILE   %s\n' "${p^^}"
 	printf '%s' "$N" ;;
 ""|help|-h|--help)
+	if [ "$ME" = compuvac ]; then
 	cat <<TXT
-${B}COMPUVAC SOFTWARE REQUISITION${N}
-${G}  compuvac install NAME...     requisition software (asks about each function)
-  compuvac install -q NAME...  requisition with recommended functions
-  compuvac reconsider NAME     answer the questions again and rebuild
-  compuvac remove NAME...      decommission software
-  compuvac update              bring everything up to date
-  compuvac search WORDS        search the archive
-  compuvac tune                fit the compiler settings to this machine's processor
+${B}COMPUVAC${N}
+${G}  compuvac tune                fit the compiler settings to this machine's processor
   compuvac rebuild             recompile every program (and the kernel) from source here
-  compuvac status              report on the core store${N}
+  compuvac status              report on the core store
+
+  Software is requisitioned with comp-src (try: comp-src help).${N}
 TXT
-	;;
-*) fault "UNKNOWN DIRECTIVE '${1^^}'. TRY: compuvac help" ;;
+	else
+	cat <<TXT
+${B}COMP-SRC · SOFTWARE REQUISITION${N}
+${G}  comp-src install NAME...     compile and install (asks about each function)
+  comp-src install -q NAME...  the same, taking the recommended functions
+  comp-src reconsider NAME     answer the questions again and recompile
+  comp-src remove NAME...      decommission software
+  comp-src update              bring everything up to date
+  comp-src search WORDS        search the archive
+
+  The machine itself: compuvac tune, compuvac rebuild, compuvac status.${N}
+TXT
+	fi ;;
+*) fault "UNKNOWN DIRECTIVE '${1^^}'. TRY: $ME help" ;;
 esac

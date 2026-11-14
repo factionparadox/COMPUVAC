@@ -9,10 +9,10 @@ less -R <<'TXT'
   F2             File store (Midnight Commander). F4 edits a file.
   F10            This manual.
 
-  compuvac install NAME     Requisition software.
-  compuvac remove NAME      Decommission software.
-  compuvac update           Bring the core store up to date.
-  compuvac search WORDS     Search the archive.
+  comp-src install NAME     Compile and install software.
+  comp-src remove NAME      Decommission software.
+  comp-src update           Bring the core store up to date.
+  comp-src search WORDS     Search the archive.
   compuvac tune             Fit the compiler to this processor.
   compuvac rebuild          Recompile everything, the kernel too, here.
 
