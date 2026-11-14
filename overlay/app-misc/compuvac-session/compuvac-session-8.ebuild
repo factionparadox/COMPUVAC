@@ -12,7 +12,6 @@ SLOT="0"
 KEYWORDS="amd64"
 
 RDEPEND="
-	app-misc/fastfetch
 	app-misc/mc
 	app-shells/bash
 	app-shells/fzf

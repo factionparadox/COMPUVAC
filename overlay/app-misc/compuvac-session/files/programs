@@ -10,6 +10,6 @@ power|compuvac-power|BATTERY AND POWER PROFILE
 firmware|fwupdmgr refresh; fwupdmgr update; read -rsn1|FIRMWARE UPDATES (LVFS)
 fingerprint|fprintd-enroll; read -rsn1|ENROL A FINGERPRINT
 manual|compuvac-help|OPERATOR MANUAL
-about|clear; fastfetch; read -rsn1|ABOUT THIS COMPUTER
+about|clear; if command -v fastfetch >/dev/null; then fastfetch; else echo "FASTFETCH NOT INSTALLED: comp-src install fastfetch"; fi; read -rsn1|ABOUT THIS COMPUTER
 software|comp-src help; read -rsn1|SOFTWARE REQUISITION (COMP-SRC)
 shell|bash -l|RAW SHELL
