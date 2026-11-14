@@ -26,8 +26,11 @@ need_archive() {  # Gentoo's package tree isn't shipped; fetch it on first use.
 }
 
 sync_compuvac() {  # Compuvac's own packages come from its GitHub repository.
-	local t; t=$(mktemp -d) || return 1
-	if wget -qO- https://codeload.github.com/factionparadox/COMPUVAC/tar.gz/refs/heads/main |
+	local t ref; t=$(mktemp -d) || return 1
+	# Ask for the newest commit by its id: GitHub can serve a stale copy of 'main' for a few minutes.
+	ref=$(wget -qO- https://api.github.com/repos/factionparadox/COMPUVAC/commits/main |
+		sed -n 's/^  "sha": "\([0-9a-f]*\)",$/\1/p' | head -1)
+	if wget -qO- "https://codeload.github.com/factionparadox/COMPUVAC/tar.gz/${ref:-refs/heads/main}" |
 		tar -xz -C "$t" --strip-components=1 --wildcards '*/overlay' 2>/dev/null &&
 		[ -f "$t/overlay/profiles/repo_name" ]; then
 		rm -rf /var/db/repos/compuvac.old
