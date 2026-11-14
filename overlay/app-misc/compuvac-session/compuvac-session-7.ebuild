@@ -12,6 +12,7 @@ SLOT="0"
 KEYWORDS="amd64"
 
 RDEPEND="
+	app-misc/fastfetch
 	app-misc/mc
 	app-shells/bash
 	app-shells/fzf
@@ -42,9 +43,19 @@ src_install() {
 	insinto /usr/share/wayland-sessions
 	doins "${FILESDIR}"/compuvac.desktop
 	keepdir /etc/compuvac
+	insinto /etc/compuvac
+	doins "${FILESDIR}"/logo.txt
+	insinto /etc/xdg/fastfetch
+	newins "${FILESDIR}"/fastfetch.jsonc config.jsonc
+	insinto /usr/share/compuvac
+	doins "${FILESDIR}"/os-release
 }
 
 pkg_postinst() {
+	# Compuvac names itself (baselayout's os-release says Gentoo).
+	rm -f "${EROOT}"/etc/os-release
+	cp "${EROOT}"/usr/share/compuvac/os-release "${EROOT}"/etc/os-release
+
 	# Apply Compuvac's settings over Ly's own config, key by key.
 	local cfg="${EROOT}"/etc/ly/config.ini key val
 	[[ -f ${cfg} ]] || return 0

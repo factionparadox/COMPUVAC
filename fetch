@@ -1,0 +1,18 @@
+#!/bin/sh
+# One-time fetch for machines installed before comp-src could update itself.
+#   wget -qO- https://raw.githubusercontent.com/factionparadox/COMPUVAC/main/fetch | doas sh
+# Afterwards 'compuvac sync' keeps Compuvac's own packages current on its own.
+set -e
+[ "$(id -u)" = 0 ] || { echo "RUN WITH DOAS."; exit 1; }
+t=$(mktemp -d)
+echo "FETCHING COMPUVAC'S OWN PACKAGES."
+wget -qO- https://codeload.github.com/factionparadox/COMPUVAC/tar.gz/refs/heads/main |
+	tar -xz -C "$t" --strip-components=1 --wildcards '*/overlay'
+[ -f "$t/overlay/profiles/repo_name" ] || { echo "DOWNLOAD INCOMPLETE."; rm -rf "$t"; exit 1; }
+rm -rf /var/db/repos/compuvac.old
+mv /var/db/repos/compuvac /var/db/repos/compuvac.old
+mv "$t/overlay" /var/db/repos/compuvac
+rm -rf /var/db/repos/compuvac.old "$t"
+echo "INSTALLING THE NEW COMP-SRC."
+emerge --oneshot --nodeps --quiet app-misc/compuvac
+echo "DONE. NEXT: doas compuvac tune, THEN doas compuvac rebuild."

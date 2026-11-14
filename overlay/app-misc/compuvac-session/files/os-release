@@ -1,0 +1,6 @@
+NAME="Compuvac"
+ID=compuvac
+ID_LIKE=gentoo
+PRETTY_NAME="Compuvac (Space Security Service master computer)"
+HOME_URL="https://github.com/factionparadox/COMPUVAC"
+ANSI_COLOR="0;32"

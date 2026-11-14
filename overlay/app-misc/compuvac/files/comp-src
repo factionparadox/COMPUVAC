@@ -25,6 +25,21 @@ need_archive() {  # Gentoo's package tree isn't shipped; fetch it on first use.
 	emerge-webrsync -q || fault "ARCHIVE UNREACHABLE. JOIN A NETWORK FIRST (CTRL+SPACE, NETWORK)."
 }
 
+sync_compuvac() {  # Compuvac's own packages come from its GitHub repository.
+	local t; t=$(mktemp -d) || return 1
+	if wget -qO- https://codeload.github.com/factionparadox/COMPUVAC/tar.gz/refs/heads/main |
+		tar -xz -C "$t" --strip-components=1 --wildcards '*/overlay' 2>/dev/null &&
+		[ -f "$t/overlay/profiles/repo_name" ]; then
+		rm -rf /var/db/repos/compuvac.old
+		mv /var/db/repos/compuvac /var/db/repos/compuvac.old &&
+			mv "$t/overlay" /var/db/repos/compuvac && rm -rf /var/db/repos/compuvac.old
+		note "COMPUVAC'S OWN PACKAGES UPDATED."
+	else
+		note "COULD NOT REACH COMPUVAC'S REPOSITORY; KEEPING ITS PACKAGES AS THEY ARE."
+	fi
+	rm -rf "$t"
+}
+
 confirm() { local a; read -rp "${G}$1 [y/N] ${N}" a </dev/tty; [[ ${a,,} == y* ]]; }
 
 resolve() {  # name -> cat/pkg
@@ -100,6 +115,7 @@ update)
 	need_archive
 	say "SYNCHRONISING ARCHIVE."
 	emaint sync -a || fault "ARCHIVE UNREACHABLE."
+	sync_compuvac
 	say "BRINGING CORE STORE UP TO DATE."
 	"${EMERGE[@]}" --update --deep --newuse @world || fault "UPDATE INCOMPLETE."
 	emerge --depclean --ask=n
@@ -119,6 +135,27 @@ tune)
 	cf=$(cpuid2cpuflags); case $cf in '*/*'*) ;; *) cf="*/* $cf" ;; esac   # newer versions add */* themselves
 	echo "$cf" > /etc/portage/package.use/00cpu-flags
 	note "   CPU_FLAGS   ${cf#*: }"
+	# Graphics: build Mesa for the GPUs actually present. Without an AMD GPU,
+	# Mesa needs no LLVM, which saves the longest compile after GCC.
+	vc= amd=
+	for v in /sys/class/drm/card[0-9]*/device/vendor; do
+		case $(cat "$v" 2>/dev/null) in
+			0x8086) vc="$vc intel" ;;
+			0x1002) vc="$vc amdgpu radeonsi"; amd=1 ;;
+			0x10de) vc="$vc nouveau" ;;
+		esac
+	done
+	vc=$(tr ' ' '\n' <<<"$vc" | sort -u | grep . | tr '\n' ' ' | sed 's/ $//')
+	if [ -n "$vc" ]; then
+		sed -i '/^VIDEO_CARDS=/d' "$mc"; echo "VIDEO_CARDS=\"$vc\"" >> "$mc"
+		note "   GRAPHICS    ${vc^^}"
+		if [ -z "$amd" ]; then
+			echo 'media-libs/mesa -llvm   # compuvac tune: no AMD GPU, so no LLVM' > /etc/portage/package.use/00compuvac-gpu
+			note "               (NO AMD GPU: MESA WILL BE BUILT WITHOUT LLVM)"
+		else
+			rm -f /etc/portage/package.use/00compuvac-gpu
+		fi
+	fi
 	say "SETTINGS WRITTEN TO $mc."
 	note "EVERYTHING BUILT FROM NOW ON IS FOR THIS PROCESSOR."
 	note "TO RECOMPILE WHAT IS ALREADY HERE: compuvac rebuild" ;;
@@ -127,28 +164,50 @@ rebuild)
 	need_archive
 	grep -q -- '-march=native' /etc/portage/make.conf ||
 		note "NOTE: NOT TUNED FOR THIS MACHINE YET ('compuvac tune' FIRST IS RECOMMENDED)."
+	state=/var/cache/compuvac; mkdir -p "$state"
+	# When this rebuild began. An interrupted rebuild is continued: anything
+	# compiled since then is not compiled again, even if settings have changed.
+	since=
+	[ -f "$state/rebuild-since" ] && since=$(cat "$state/rebuild-since")
+	[ -z "$since" ] && [ -f "$state/rebuild-resume" ] && since=$(stat -c %Y "$state/rebuild-resume")  # earlier versions
+	[ -n "$since" ] && say "CONTINUING THE REBUILD BEGUN $(date -d "@$since" '+%-d %B AT %H:%M' | tr a-z A-Z)."
+	start=${since:-$(date +%s)}
 	# A kernel installed as a binary is replaced by one compiled here.
 	kswap=
-	[ -d /var/db/pkg/sys-kernel ] && ls /var/db/pkg/sys-kernel | grep -q '^gentoo-kernel-bin-' && kswap=1
-	n=$(emerge -pe @world 2>/dev/null | grep -c '^\[ebuild')
-	say "REBUILD: EVERY PROGRAM ($n) WILL BE COMPILED FROM SOURCE ON THIS MACHINE."
+	ls /var/db/pkg/sys-kernel 2>/dev/null | grep -q '^gentoo-kernel-bin-' && kswap=1
+	nollvm=; [ -f /etc/portage/package.use/00compuvac-gpu ] && nollvm=1
+	todo=()
+	for d in /var/db/pkg/*/*; do
+		pn=$(qatom -F '%{CATEGORY}/%{PN}' "${d#/var/db/pkg/}")
+		bt=$(cat "$d/BUILD_TIME" 2>/dev/null || echo 0)
+		[ "$bt" -lt "$start" ] || continue                       # already rebuilt
+		case $pn in sys-kernel/gentoo-kernel-bin) continue ;; esac
+		[ -n "$nollvm" ] && case $pn in llvm-core/*) continue ;; esac   # Mesa will not need it
+		slot=$(cut -d/ -f1 "$d/SLOT" 2>/dev/null)
+		todo+=("$pn${slot:+:$slot}")
+	done
+	say "REBUILD: ${#todo[@]} PROGRAMS TO COMPILE FROM SOURCE ON THIS MACHINE."
 	[ -n "$kswap" ] && note "THE KERNEL WILL BE COMPILED HERE TOO, REPLACING THE PREBUILT ONE."
+	[ -n "$nollvm" ] && note "LLVM IS SKIPPED: THIS MACHINE'S GRAPHICS DO NOT NEED IT."
 	note "THIS TAKES MANY HOURS. THE MACHINE STAYS USABLE. MAINS POWER IS ADVISED."
 	note "IF IT IS INTERRUPTED, RUN 'compuvac rebuild' AGAIN TO CONTINUE."
 	confirm "PROCEED?" || fault "REBUILD ABANDONED."
+	echo "$start" > "$state/rebuild-since"; rm -f "$state/rebuild-resume"
 	compuvac-sound launch
 	if [ -n "$kswap" ]; then
-		# Swap the prebuilt kernel for the source one in the chosen set; it then
-		# compiles once, with everything else.
 		emerge --deselect sys-kernel/gentoo-kernel-bin >/dev/null
 		grep -qx sys-kernel/gentoo-kernel /var/lib/portage/world ||
 			echo sys-kernel/gentoo-kernel >> /var/lib/portage/world
 	fi
-	if [ -f /var/cache/compuvac/rebuild-resume ] && emerge --resume --keep-going 2>/dev/null; then :; else
-		mkdir -p /var/cache/compuvac; touch /var/cache/compuvac/rebuild-resume
-		emerge --emptytree --keep-going @world || fault "SOME PROGRAMS FAILED TO COMPILE (SEE ABOVE). RUN 'compuvac rebuild' TO RETRY."
+	if [ ${#todo[@]} -gt 0 ]; then
+		emerge --oneshot --keep-going "${todo[@]}" ||
+			fault "SOME PROGRAMS FAILED TO COMPILE (SEE ABOVE). RUN 'compuvac rebuild' TO RETRY."
 	fi
-	rm -f /var/cache/compuvac/rebuild-resume
+	# Whatever the new settings call for that is not yet here (the source kernel,
+	# Mesa without LLVM, and so on).
+	emerge --update --deep --newuse --keep-going @world ||
+		fault "SOME PROGRAMS FAILED TO COMPILE (SEE ABOVE). RUN 'compuvac rebuild' TO RETRY."
+	rm -f "$state/rebuild-since"
 	emerge --depclean --ask=n
 	emerge @preserved-rebuild
 	kver=$(ls -t /lib/modules | head -1)
@@ -163,6 +222,7 @@ sync)
 	need_archive
 	say "SYNCHRONISING ARCHIVE."
 	emaint sync -a || fault "ARCHIVE UNREACHABLE."
+	sync_compuvac
 	say "ARCHIVE CURRENT AS OF $(cat /var/db/repos/gentoo/metadata/timestamp.chk)." ;;
 owner|belongs)
 	shift; [ $# -ge 1 ] || fault "SPECIFY A FILE."

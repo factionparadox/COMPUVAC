@@ -50,6 +50,20 @@ machine its own work, on the machine itself:
 A quick way in is to build the ISO with `BINPKGS=1` on any computer, install,
 then tune and rebuild on the target machine.
 
+`tune` also reads the graphics chip and sets `VIDEO_CARDS`; without an AMD GPU
+Mesa is built without LLVM, which spares compiling the largest program there is.
+`rebuild` can be stopped and started again: it carries on from where it was.
+`comp-src sync` fetches Compuvac's own packages from this repository.
+Machines installed before that existed need, once:
+
+    wget -qO- https://raw.githubusercontent.com/factionparadox/COMPUVAC/main/fetch | doas sh
+
+## Your logo
+
+`about` in the launcher (or `fastfetch`) shows `/etc/compuvac/logo.txt` beside
+the machine's details. It's plain text; `$1` switches to green. Replace the
+placeholder with your own.
+
 ## Laptop support
 
 Chosen for the Framework Laptop 13 Pro (Intel Core Ultra Series 3), useful on any laptop:
