@@ -15,3 +15,6 @@ media-video/pipewire sound-server pipewire-alsa
 # No elogind runs: without this WirePlumber can treat the seat as inactive and mute audio.
 media-video/wireplumber -elogind
 media-video/pipewire -elogind
+
+# fastfetch: Lua scripting is not needed
+app-misc/fastfetch -lua -X -xcb -xrandr -gnome -imagemagick -chafa -opencl

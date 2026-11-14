@@ -124,11 +124,13 @@ tune)
 	need_root tune
 	mc=/etc/portage/make.conf
 	j=$(nproc)
+	ram=$(awk '/^MemTotal/ {print int($2/2097152)}' /proc/meminfo)   # one job per 2 GB of memory
+	[ "${ram:-0}" -ge 1 ] && [ "$ram" -lt "$j" ] && j=$ram
 	cpu=$(sed -n 's/^model name[[:space:]]*: //p' /proc/cpuinfo | head -1)
 	arch=$(gcc -march=native -Q --help=target 2>/dev/null | awk '$1=="-march=" {print $2; exit}')
 	say "TUNING COMPUVAC FOR THIS MACHINE"
 	note "   PROCESSOR   ${cpu^^}"
-	note "   TARGET      -march=native (${arch:-unknown})   ${j} CORES"
+	note "   TARGET      -march=native (${arch:-unknown})   ${j} JOBS AT ONCE"
 	sed -i "s|^COMMON_FLAGS=.*|COMMON_FLAGS=\"-O2 -pipe -march=native\"|; s|^MAKEOPTS=.*|MAKEOPTS=\"-j$j -l$j\"|" "$mc"
 	grep -q '^MAKEOPTS=' "$mc" || echo "MAKEOPTS=\"-j$j -l$j\"" >> "$mc"
 	mkdir -p /etc/portage/package.use
@@ -162,6 +164,7 @@ tune)
 rebuild)
 	need_root rebuild
 	need_archive
+	sync_compuvac   # fixes to Compuvac's own packages arrive before compiling
 	grep -q -- '-march=native' /etc/portage/make.conf ||
 		note "NOTE: NOT TUNED FOR THIS MACHINE YET ('compuvac tune' FIRST IS RECOMMENDED)."
 	state=/var/cache/compuvac; mkdir -p "$state"
